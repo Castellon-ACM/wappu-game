@@ -52,7 +52,9 @@ curl -L "$BASE/wp_logo.png"   -o assets/wapuu/wp_logo.png
 
 ## Publicación
 
-El workflow `.github/workflows/pages.yml` descarga el modelo y publica la web en GitHub Pages con cada push a `main`. Solo hay que activar una vez **Settings → Pages → Source: GitHub Actions**.
+La web se publica con GitHub Pages directamente desde la rama `main`: **Settings → Pages → Build and deployment → Source: Deploy from a branch → `main` / `(root)`**.
+
+El modelo 3D no está en este repositorio: el juego lo descarga al arrancar desde [wckansai2016/3d-wapuu](https://github.com/wckansai2016/3d-wapuu). Si prefieres servirlo desde aquí, sube `wapuu_low.obj` y `wp_logo.png` a `assets/wapuu/` (y quita esa carpeta del `.gitignore`); el juego usa primero la copia local si existe.
 
 ## Créditos y licencia
 
