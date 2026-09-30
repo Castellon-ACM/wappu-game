@@ -304,7 +304,7 @@ function shower() {
     clearInterval(w);
     S.apply(state, { hygiene: 28 + bonus, fun: 3 });
     state.soap = 0;
-    say(bonus > 10 ? '¡Limísimo y con olor a jabón!' : '¡Fresquito!', 1800);
+    say(bonus > 10 ? '¡Limpísimo y con olor a jabón!' : '¡Fresquito!', 1800);
     burst('✨', 4);
     gain({ xp: 3 });
   });
