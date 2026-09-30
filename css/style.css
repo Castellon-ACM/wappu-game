@@ -57,27 +57,32 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--blueberry);
 
 /* ---------- Tienda ---------- */
 #shop {
-  margin: auto auto 0; width: 100%; max-width: 640px; max-height: 56vh;
-  border-radius: 22px 22px 0 0; border-bottom: 0; padding: 14px 16px calc(16px + var(--safe-bottom));
-  overflow-y: auto;
+  position: fixed; left: 0; right: 0; bottom: 0; top: auto; z-index: 9;
+  margin: 0 auto; width: 100%; max-width: 640px;
+  box-shadow: 0 -6px 0 rgba(30,30,30,.12);
+  border-radius: 22px 22px 0 0; border-bottom: 0; padding: 12px 14px calc(14px + var(--safe-bottom));
 }
-#shop::backdrop { background: rgba(20, 24, 60, .15); }
 .shop-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .shop-head h2 { margin: 0; flex: 1; }
 .shop-head .coins { box-shadow: none; }
 .shop-head .icon-btn { width: 38px; height: 38px; }
-.shop-slot { font-size: .85rem; font-weight: 700; margin: 12px 0 6px; opacity: .7; }
-.shop-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
+.shop-tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+.shop-tabs button {
+  flex: 1; border: 3px solid var(--ink); border-radius: 999px; background: var(--paper);
+  padding: 4px 8px; font-weight: 700; font-size: .85rem;
+}
+.shop-tabs button[aria-selected="true"] { background: var(--ink); color: var(--paper); }
+.shop-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .item {
-  display: grid; justify-items: center; gap: 4px; padding: 10px 6px 8px; text-align: center;
-  border: 3px solid var(--ink); border-radius: 18px; background: var(--paper); box-shadow: var(--shadow);
+  display: grid; justify-items: center; align-content: start; gap: 4px; padding: 8px 4px; text-align: center;
+  border: 3px solid var(--ink); border-radius: 16px; background: var(--paper); box-shadow: var(--shadow);
 }
 .item.worn { background: #E6EBFF; border-color: var(--blueberry); }
-.item .emo { font-size: 2rem; line-height: 1; }
-.item .iname { font-weight: 700; font-size: .85rem; line-height: 1.2; }
+.item .emo { font-size: 1.8rem; line-height: 1; }
+.item .iname { font-weight: 700; font-size: .75rem; line-height: 1.15; min-height: 2.3em; display: grid; place-items: center; }
 .item button {
-  border: 2px solid var(--ink); border-radius: 999px; padding: 3px 12px; font-weight: 700; font-size: .8rem;
-  background: var(--wapuu);
+  border: 2px solid var(--ink); border-radius: 999px; padding: 2px 8px; font-weight: 700; font-size: .75rem;
+  background: var(--wapuu); white-space: nowrap;
 }
 .item button.wear { background: var(--blueberry); color: var(--paper); }
 .item button.off { background: var(--paper); }

@@ -501,35 +501,44 @@ const shop = $('#shop');
 function openShop() {
   if (busy) return;
   renderShop();
-  shop.showModal();
+  shop.show();
+  $('#shop-close').focus();
 }
+let shopSlot = 'head';
 function renderShop() {
   $('#shop-coins').textContent = state.coins;
   const grid = $('#shop-grid');
   grid.innerHTML = '';
-  for (const slot of Object.keys(S.SLOT_NAMES)) {
-    const h = document.createElement('p');
-    h.className = 'shop-slot'; h.textContent = S.SLOT_NAMES[slot];
-    const row = document.createElement('div'); row.className = 'shop-row';
-    for (const it of S.COSMETICS.filter(c => c.slot === slot)) {
-      const owned = state.owned.includes(it.id);
-      const worn = state.equipped[slot] === it.id;
-      const locked = !owned && it.level && state.level < it.level;
-      const card = document.createElement('div');
-      card.className = 'item' + (worn ? ' worn' : '');
-      card.innerHTML = `<span class="emo" aria-hidden="true">${it.emo}</span><span class="iname">${it.name}</span>`;
-      const b = document.createElement('button');
-      if (worn) { b.textContent = 'Quitar'; b.className = 'off'; }
-      else if (owned) { b.textContent = 'Poner'; b.className = 'wear'; }
-      else if (locked) { b.textContent = `🔒 Nv. ${it.level}`; b.disabled = true; }
-      else { b.textContent = `🪙 ${it.price}`; b.disabled = state.coins < it.price; }
-      b.setAttribute('aria-label', `${b.textContent} ${it.name}`);
-      b.addEventListener('click', () => shopAction(it));
-      card.append(b);
-      row.append(card);
-    }
-    grid.append(h, row);
+  // pestañas por zona: la tienda es una sola fila y Wapuu se sigue viendo entero
+  const tabs = document.createElement('div');
+  tabs.className = 'shop-tabs'; tabs.setAttribute('role', 'tablist');
+  for (const slot of ['head', 'face', 'ear']) {
+    const t = document.createElement('button');
+    t.textContent = S.SLOT_NAMES[slot];
+    t.setAttribute('role', 'tab');
+    t.setAttribute('aria-selected', slot === shopSlot ? 'true' : 'false');
+    t.addEventListener('click', () => { shopSlot = slot; sfx.tap(); renderShop(); });
+    tabs.append(t);
   }
+  const row = document.createElement('div'); row.className = 'shop-row'; row.setAttribute('role', 'tabpanel');
+  for (const it of S.COSMETICS.filter(c => c.slot === shopSlot)) {
+    const owned = state.owned.includes(it.id);
+    const worn = state.equipped[it.slot] === it.id;
+    const locked = !owned && it.level && state.level < it.level;
+    const card = document.createElement('div');
+    card.className = 'item' + (worn ? ' worn' : '');
+    card.innerHTML = `<span class="emo" aria-hidden="true">${it.emo}</span><span class="iname">${it.name}</span>`;
+    const b = document.createElement('button');
+    if (worn) { b.textContent = 'Quitar'; b.className = 'off'; }
+    else if (owned) { b.textContent = 'Poner'; b.className = 'wear'; }
+    else if (locked) { b.textContent = `🔒 Nv. ${it.level}`; b.disabled = true; }
+    else { b.textContent = `🪙 ${it.price}`; b.disabled = state.coins < it.price; }
+    b.setAttribute('aria-label', `${b.textContent} ${it.name}`);
+    b.addEventListener('click', () => shopAction(it));
+    card.append(b);
+    row.append(card);
+  }
+  grid.append(tabs, row);
 }
 function shopAction(it) {
   unlock();
@@ -568,11 +577,7 @@ function setupMenu() {
   $('#menu-btn').addEventListener('click', open);
   $('#shop-btn').addEventListener('click', () => { unlock(); sfx.tap(); openShop(); });
   $('#shop-close').addEventListener('click', () => shop.close());
-  shop.addEventListener('click', (e) => {
-    if (e.target !== shop) return;
-    const r = shop.getBoundingClientRect();
-    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) shop.close();
-  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && shop.open) shop.close(); });
   $('#pet-name').addEventListener('click', open);
   $('#reset-btn').addEventListener('click', (e) => {
     if (!confirm('¿Seguro? Se borrará todo el progreso de tu Wapuu.')) { e.preventDefault(); return; }
