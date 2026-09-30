@@ -32,6 +32,27 @@ export const FOODS = [
   { id: 'paella',  emo: '🥘', name: 'Paella',  price: 18, effects: { food: 55, fun: 10 },              say: '¡Esto es un WordCamp!' },
 ];
 
+// Cosméticos: slot = dónde se pone (solo uno por slot). level = nivel mínimo para comprarlo.
+export const COSMETICS = [
+  { id: 'flower',     emo: '🌼', name: 'Flor',            slot: 'ear',  price: 10 },
+  { id: 'bow',        emo: '🎀', name: 'Lazo',            slot: 'ear',  price: 12 },
+  { id: 'party',      emo: '🥳', name: 'Gorro de fiesta', slot: 'head', price: 15 },
+  { id: 'nerd',       emo: '🤓', name: 'Gafas de pasta',  slot: 'face', price: 18 },
+  { id: 'sunglasses', emo: '😎', name: 'Gafas de sol',    slot: 'face', price: 22 },
+  { id: 'cap',        emo: '🧢', name: 'Gorra WordPress', slot: 'head', price: 25, level: 2 },
+  { id: 'tophat',     emo: '🎩', name: 'Chistera',        slot: 'head', price: 40, level: 3 },
+  { id: 'crown',      emo: '👑', name: 'Corona',          slot: 'head', price: 80, level: 5 },
+];
+export const SLOT_NAMES = { head: 'Cabeza', face: 'Cara', ear: 'Oreja' };
+
+// Etapas de crecimiento, como en Pou: empieza bebé y crece al subir de nivel.
+export function stage(level) {
+  const scale = Math.min(1, 0.58 + (level - 1) * 0.07);
+  const eyes = 1 + (1 - scale) * 0.55;      // los bebés tienen los ojos más grandes
+  const name = level <= 2 ? 'Bebé' : level <= 4 ? 'Pequeño' : level <= 6 ? 'Joven' : 'Adulto';
+  return { scale, eyes, name };
+}
+
 const clamp = (v, a = 0, b = 100) => Math.max(a, Math.min(b, v));
 
 function fresh() {
@@ -46,6 +67,8 @@ function fresh() {
     mode: 'idle',      // idle | sleeping | coding
     room: 'salon',
     soap: 0,           // espuma acumulada en el baño
+    owned: [],         // cosméticos comprados
+    equipped: {},      // { head, face, ear }
     lastTick: Date.now(),
     createdAt: Date.now(),
   };
@@ -57,6 +80,8 @@ export function load() {
     if (raw) {
       const s = { ...fresh(), ...JSON.parse(raw) };
       s.stats = { ...fresh().stats, ...s.stats };
+      s.owned = Array.isArray(s.owned) ? s.owned : [];
+      s.equipped = s.equipped && typeof s.equipped === 'object' ? s.equipped : {};
       return s;
     }
   } catch (e) { /* storage no disponible */ }
@@ -145,7 +170,7 @@ export function complaint(s) {
     energy: ['Tengo sueño…', 'Necesito una siesta.', 'Me quedo sin batería.'],
     fun: ['Me aburro…', '¿Jugamos un rato?', 'Necesito mimos.'],
     bladder: ['¡Necesito ir al baño!', '¡Corre, al váter!', 'Esto urge…'],
-    hygiene: ['Huelo a código legacy.', 'Necesito un baño.', 'Estoy pegajoso…'],
+    hygiene: ['Huelo a código legacy.', 'Necesito un baño.', 'Estoy pegajoso…', '¡Hasta las moscas me siguen!'],
   };
   let worst = null, v = 101;
   for (const k of STATS) if (s.stats[k] < v) { v = s.stats[k]; worst = k; }

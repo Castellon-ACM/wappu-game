@@ -33,11 +33,12 @@
     <div class="hud-row">
       <button id="pet-name" class="name-pill" title="Cambiar nombre">
         <span id="name-text">Wapuu</span>
-        <span id="level-text" class="level">Nv. 1 · Becario del plugin</span>
+        <span id="level-text" class="level">Nv. 1 · Bebé</span>
         <span class="xp"><span id="xp-bar"></span></span>
       </button>
       <div class="hud-right">
         <div class="coins" title="Monedas"><span aria-hidden="true">🪙</span> <strong id="coins">0</strong></div>
+        <button id="shop-btn" class="icon-btn" title="Tienda" aria-label="Tienda de cosméticos">🛍️</button>
         <button id="mute" class="icon-btn" title="Sonido" aria-label="Activar o desactivar sonido">🔊</button>
         <button id="menu-btn" class="icon-btn" title="Opciones" aria-label="Opciones">⚙️</button>
       </div>
@@ -64,6 +65,18 @@
   </nav>
 
   <div id="toast" role="status" aria-live="polite"></div>
+
+  <!-- Jabón que sigue al dedo o al ratón en el baño -->
+  <div id="soap-cursor" aria-hidden="true" hidden>🧼</div>
+
+  <dialog id="shop" aria-labelledby="shop-title">
+    <div class="shop-head">
+      <h2 id="shop-title">Tienda</h2>
+      <div class="coins"><span aria-hidden="true">🪙</span> <strong id="shop-coins">0</strong></div>
+      <button id="shop-close" class="icon-btn" aria-label="Cerrar tienda">✕</button>
+    </div>
+    <div id="shop-grid"></div>
+  </dialog>
 
   <dialog id="menu">
     <form method="dialog">

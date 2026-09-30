@@ -33,7 +33,55 @@ button { font: inherit; color: inherit; cursor: pointer; }
 button:focus-visible, input:focus-visible { outline: 3px solid var(--blueberry); outline-offset: 2px; }
 
 #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
-#scene.soap { cursor: grab; }
+#scene.soap { cursor: none; }
+
+#soap-cursor {
+  position: fixed; left: 0; top: 0; z-index: 7; pointer-events: none;
+  font-size: 3rem; line-height: 1; transform: translate(-50%, -50%) rotate(-15deg);
+  filter: drop-shadow(0 3px 0 rgba(30,30,30,.3));
+}
+#soap-cursor.rub { animation: rub .18s infinite alternate; }
+#soap-cursor[hidden] { display: none; }
+@keyframes rub { from { transform: translate(-50%, -50%) rotate(-25deg) scale(1.05); } to { transform: translate(-50%, -50%) rotate(-5deg) scale(.95); } }
+
+.flybug { position: absolute; font-size: 1.3rem; animation: buzz 3s linear forwards; }
+@keyframes buzz {
+  0% { opacity: 0; transform: translate(0, 0); }
+  10% { opacity: 1; }
+  25% { transform: translate(30px, -20px); }
+  50% { transform: translate(-25px, -35px); }
+  75% { transform: translate(20px, 10px); }
+  90% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-10px, -40px); }
+}
+
+/* ---------- Tienda ---------- */
+#shop {
+  margin: auto auto 0; width: 100%; max-width: 640px; max-height: 56vh;
+  border-radius: 22px 22px 0 0; border-bottom: 0; padding: 14px 16px calc(16px + var(--safe-bottom));
+  overflow-y: auto;
+}
+#shop::backdrop { background: rgba(20, 24, 60, .15); }
+.shop-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.shop-head h2 { margin: 0; flex: 1; }
+.shop-head .coins { box-shadow: none; }
+.shop-head .icon-btn { width: 38px; height: 38px; }
+.shop-slot { font-size: .85rem; font-weight: 700; margin: 12px 0 6px; opacity: .7; }
+.shop-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
+.item {
+  display: grid; justify-items: center; gap: 4px; padding: 10px 6px 8px; text-align: center;
+  border: 3px solid var(--ink); border-radius: 18px; background: var(--paper); box-shadow: var(--shadow);
+}
+.item.worn { background: #E6EBFF; border-color: var(--blueberry); }
+.item .emo { font-size: 2rem; line-height: 1; }
+.item .iname { font-weight: 700; font-size: .85rem; line-height: 1.2; }
+.item button {
+  border: 2px solid var(--ink); border-radius: 999px; padding: 3px 12px; font-weight: 700; font-size: .8rem;
+  background: var(--wapuu);
+}
+.item button.wear { background: var(--blueberry); color: var(--paper); }
+.item button.off { background: var(--paper); }
+.item button:disabled { opacity: .5; cursor: not-allowed; }
 
 /* ---------- HUD ---------- */
 #hud {
