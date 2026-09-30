@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>Wapuu Game · cuida de tu Wapuu</title>
+  <meta name="description" content="Un juego de mascota virtual con Wapuu, la mascota de WordPress. Dale de comer, ponlo a programar, a dormir y llévalo al baño.">
+  <meta name="theme-color" content="#3858E9">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐾</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Grandstander:wght@500;700;900&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <canvas id="scene" aria-label="Habitación de Wapuu"></canvas>
+
+  <!-- Capa de efectos (corazones, zetas, bugs, comida) -->
+  <div id="fx" aria-hidden="true"></div>
+
+  <!-- Bocadillo de Wapuu -->
+  <div id="bubble" role="status" aria-live="polite" hidden></div>
+
+  <header id="hud">
+    <div class="hud-row">
+      <button id="pet-name" class="name-pill" title="Cambiar nombre">
+        <span id="name-text">Wapuu</span>
+        <span id="level-text" class="level">Nv. 1 · Becario del plugin</span>
+        <span class="xp"><span id="xp-bar"></span></span>
+      </button>
+      <div class="hud-right">
+        <div class="coins" title="Monedas"><span aria-hidden="true">🪙</span> <strong id="coins">0</strong></div>
+        <button id="mute" class="icon-btn" title="Sonido" aria-label="Activar o desactivar sonido">🔊</button>
+        <button id="menu-btn" class="icon-btn" title="Opciones" aria-label="Opciones">⚙️</button>
+      </div>
+    </div>
+    <ul id="stats" class="stats" aria-label="Necesidades de Wapuu">
+      <li data-stat="food"><span class="ring"><span>🍕</span></span><small>Comida</small></li>
+      <li data-stat="energy"><span class="ring"><span>⚡</span></span><small>Energía</small></li>
+      <li data-stat="fun"><span class="ring"><span>🎈</span></span><small>Ánimo</small></li>
+      <li data-stat="bladder"><span class="ring"><span>🚽</span></span><small>Baño</small></li>
+      <li data-stat="hygiene"><span class="ring"><span>🫧</span></span><small>Higiene</small></li>
+    </ul>
+  </header>
+
+  <section id="room-title" aria-live="polite"><span id="room-name">Salón</span></section>
+
+  <section id="actions" aria-label="Acciones"></section>
+
+  <nav id="rooms" aria-label="Habitaciones">
+    <button data-room="salon"><span>🛋️</span>Salón</button>
+    <button data-room="cocina"><span>🍳</span>Cocina</button>
+    <button data-room="despacho"><span>💻</span>Despacho</button>
+    <button data-room="bano"><span>🛁</span>Baño</button>
+    <button data-room="dormitorio"><span>🛏️</span>Dormir</button>
+  </nav>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <dialog id="menu">
+    <form method="dialog">
+      <h2>Opciones</h2>
+      <label>Nombre de tu Wapuu
+        <input id="name-input" maxlength="16" autocomplete="off">
+      </label>
+      <p class="stats-line" id="stats-line"></p>
+      <div class="menu-actions">
+        <button value="save" class="primary">Guardar</button>
+        <button value="reset" id="reset-btn" class="danger">Empezar de cero</button>
+      </div>
+      <p class="credits">
+        Wapuu fue diseñado por Kazuko Kaneuchi. Modelo 3D de Takeshi Kashihara
+        (<a href="https://github.com/wckansai2016/3d-wapuu" target="_blank" rel="noopener">3d-wapuu</a>).
+        Ambos bajo licencia GPLv2 o posterior.
+      </p>
+    </form>
+  </dialog>
+
+  <div id="loader">
+    <div class="loader-card">
+      <div class="paw" aria-hidden="true">🐾</div>
+      <p id="loader-text">Despertando a Wapuu…</p>
+      <div class="loader-bar"><span id="loader-bar"></span></div>
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
