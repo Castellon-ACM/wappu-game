@@ -1,0 +1,12 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Cada persona solo puede leer y escribir su propia partida (saves/{su uid}).
+    match /saves/{uid} {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.data is string
+        && request.resource.data.data.size() < 20000;
+    }
+  }
+}

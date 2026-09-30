@@ -16,7 +16,9 @@ Wapuu tiene cinco necesidades que bajan con el tiempo (también cuando cierras l
 | 🛁 Baño | Llevarle al váter, frotarle con jabón (arrastrando el jabón sobre él) y darle una ducha |
 | 🛏️ Dormir | Apagar la luz para que recupere energía |
 
-Programar cansa y da hambre, así que hay que equilibrar trabajo y descanso. La partida se guarda en el navegador.
+Programar cansa y da hambre, así que hay que equilibrar trabajo y descanso.
+
+**Cuenta y guardado en la nube.** Al entrar puedes crear una cuenta con correo y contraseña (o recuperarla si la olvidas) para jugar desde varios dispositivos sin perder el progreso; también puedes jugar sin cuenta, y entonces la partida solo se guarda en ese navegador.
 
 **Crece contigo.** Wapuu empieza siendo un bebé (pequeño y con los ojos grandes) y crece con cada nivel: bebé, pequeño, joven y adulto a partir del nivel 7. Por el camino gana títulos, de *Becario del plugin* a *Leyenda del WordCamp*.
 
@@ -29,16 +31,40 @@ Programar cansa y da hambre, así que hay que equilibrar trabajo y descanso. La 
 - HTML, CSS y JavaScript sin compilación.
 - [three.js](https://threejs.org/) 0.160 desde jsDelivr para el 3D.
 - Sonidos generados con WebAudio.
-- Guardado en `localStorage`.
+- Cuentas y guardado en la nube con [Firebase](https://firebase.google.com/) (Authentication + Firestore); si no se configura, el juego sigue funcionando guardando solo en `localStorage`.
 
 ```
 index.html
 css/style.css
-js/main.js    → lógica del juego e interfaz
-js/world.js   → escena 3D, habitaciones y animaciones de Wapuu
-js/state.js   → necesidades, niveles y guardado
-js/audio.js   → efectos de sonido
+js/main.js              → lógica del juego, interfaz y flujo de acceso
+js/world.js              → escena 3D, habitaciones y animaciones de Wapuu
+js/state.js              → necesidades, niveles y guardado local
+js/audio.js              → efectos de sonido
+js/auth.js               → cuentas (Firebase Authentication) y guardado en Firestore
+js/firebase-config.js    → claves públicas del proyecto de Firebase (no está en el repo, ver abajo)
+firestore.rules           → reglas de seguridad de Firestore
 ```
+
+## Configurar Firebase (cuentas y guardado en la nube)
+
+Este repositorio ya incluye `js/firebase-config.js` con las claves del proyecto de Firebase de este juego (son públicas por diseño, ver más abajo). Si haces un fork o quieres tu propio proyecto, sustitúyelas por las tuyas. Para configurarlo desde cero, en la [consola de Firebase](https://console.firebase.google.com) (plan gratuito Spark es suficiente):
+
+1. Crea un proyecto.
+2. En **Authentication → Sign-in method**, activa el proveedor de correo y contraseña.
+3. En **Authentication → Settings → Authorized domains**, añade el dominio donde publiques el juego (por ejemplo `castellon-acm.github.io`).
+4. Crea la base de datos de **Firestore** y pega en **Reglas** el contenido de [`firestore.rules`](firestore.rules).
+5. Registra una app web (icono `</>`) y copia sus claves (`apiKey`, `authDomain`, `projectId`, `appId`) en un archivo nuevo `js/firebase-config.js`:
+
+```js
+export const firebaseConfig = {
+  apiKey: 'AIzaSy...',
+  authDomain: 'tu-proyecto.firebaseapp.com',
+  projectId: 'tu-proyecto',
+  appId: '1:1234567890:web:abc123...',
+};
+```
+
+Estas claves son públicas por diseño: lo que protege la partida de cada persona son las reglas de Firestore, no el secreto de estas claves.
 
 ## Probar en local
 

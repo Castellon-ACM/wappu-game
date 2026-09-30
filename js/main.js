@@ -1,6 +1,7 @@
 import { World } from './world.js';
 import * as S from './state.js';
 import { sfx, toggleMute, isMuted, unlock } from './audio.js';
+import * as Auth from './auth.js';
 
 const $ = (sel) => document.querySelector(sel);
 const fx = $('#fx');
@@ -9,8 +10,55 @@ const bubble = $('#bubble');
 let isNew = true;
 try { isNew = !localStorage.getItem('wapuu-game-v1'); } catch (e) {}
 let state = S.load();
-const saveNow = () => S.save(state);
 let world;
+
+// ---------------- cuenta y guardado en la nube ----------------
+let currentUid = null;
+let lastCloudMs = 0;
+let cloudTimer = null;
+let lastInteraction = performance.now();
+document.addEventListener('pointerdown', () => { lastInteraction = performance.now(); });
+document.addEventListener('keydown', () => { lastInteraction = performance.now(); });
+
+function paintSync(text) {
+  const el = $('#account-sync');
+  if (el) el.textContent = text;
+}
+
+function queueCloudSave() {
+  if (!currentUid) return;
+  paintSync('Guardando en la nube…');
+  clearTimeout(cloudTimer);
+  cloudTimer = setTimeout(async () => {
+    cloudTimer = null;
+    const ms = await Auth.saveCloudSave(currentUid, state);
+    if (ms) { lastCloudMs = ms; paintSync('Guardada en la nube ahora mismo.'); }
+    else paintSync('No se ha podido guardar en la nube. Se reintentará.');
+  }, 2200);
+}
+
+function persist() {
+  S.save(state);
+  queueCloudSave();
+}
+
+function paintAccountBox() {
+  const user = Auth.currentUser();
+  const box = $('#account-box');
+  const guest = $('#account-guest');
+  const verify = $('#account-verify');
+  if (!user) {
+    box.hidden = true;
+    guest.hidden = false;
+    return;
+  }
+  guest.hidden = true;
+  box.hidden = false;
+  $('#account-email').textContent = user.email;
+  paintSync(lastCloudMs ? 'Guardada en la nube.' : 'Aún no se ha guardado en la nube.');
+  verify.hidden = user.emailVerified;
+}
+const saveNow = () => { S.save(state); if (currentUid) Auth.saveCloudSave(currentUid, state); };
 let busy = false;          // hay una animación que bloquea acciones
 let soapMode = false;
 let lastPet = 0;
@@ -443,7 +491,7 @@ function loop() {
     world.setMood(S.mood(state));
     world.setDirt(dirtLevel());
     renderHud();
-    if (now - lastSave > 5000) { S.save(state); lastSave = now; }
+    if (now - lastSave > 5000) { persist(); lastSave = now; }
   }
 
   // quejas periódicas
@@ -560,7 +608,7 @@ function shopAction(it) {
     gain({ xp: 3 });
   }
   world.setCosmetics(state.equipped);
-  S.save(state);
+  persist();
   renderHud();
   renderShop();
 }
@@ -572,8 +620,19 @@ function setupMenu() {
     $('#name-input').value = state.name;
     const days = Math.max(1, Math.round((Date.now() - state.createdAt) / 86400000));
     $('#stats-line').textContent = `${S.title(state.level)}. ${state.commits} commits, ${state.bugs} bugs aplastados, ${days} día${days > 1 ? 's' : ''} juntos.`;
+    paintAccountBox();
     dlg.showModal();
   };
+  $('#resend-verify-btn').addEventListener('click', async () => {
+    const r = await Auth.resendVerification();
+    toast(r.ok ? 'Correo de verificación enviado.' : r.error);
+  });
+  $('#signout-btn').addEventListener('click', async () => {
+    if (!confirm('¿Cerrar sesión? Tu progreso ya está guardado en la nube.')) return;
+    await Auth.signOutUser();
+    location.reload();
+  });
+  $('#account-login-btn').addEventListener('click', () => location.reload());
   $('#menu-btn').addEventListener('click', open);
   $('#shop-btn').addEventListener('click', () => { unlock(); sfx.tap(); openShop(); });
   $('#shop-close').addEventListener('click', () => shop.close());
@@ -582,7 +641,7 @@ function setupMenu() {
   $('#reset-btn').addEventListener('click', (e) => {
     if (!confirm('¿Seguro? Se borrará todo el progreso de tu Wapuu.')) { e.preventDefault(); return; }
   });
-  dlg.addEventListener('close', () => {
+  dlg.addEventListener('close', async () => {
     if (dlg.returnValue === 'save') {
       const n = $('#name-input').value.trim();
       if (n) { state.name = n; world.name = n; world.setMode(state.mode); }
@@ -591,16 +650,148 @@ function setupMenu() {
       state = S.reset();
       state.createdAt = Date.now();
       localStorage.removeItem('wapuu-game-v1');
+      if (currentUid) await Auth.saveCloudSave(currentUid, state);
       location.reload();
       return;
     }
-    S.save(state);
+    persist();
     renderHud();
   });
   const mute = $('#mute');
   const paint = () => { mute.textContent = isMuted() ? '🔇' : '🔊'; };
   paint();
   mute.addEventListener('click', () => { toggleMute(); paint(); });
+}
+
+// ---------------- pantalla de acceso ----------------
+let authMode = 'signin';
+let skipToGuest = null;
+
+function setupAuthScreen() {
+  const screen = $('#auth-screen');
+  const form = $('#auth-form');
+  const email = $('#auth-email');
+  const pass = $('#auth-password');
+  const pass2 = $('#auth-password2');
+  const pass2Field = $('#auth-pass2-field');
+  const passField = $('#auth-pass-field');
+  const hint = $('#auth-hint');
+  const err = $('#auth-error');
+  const ok = $('#auth-ok');
+  const submit = $('#auth-submit');
+  const tabs = document.querySelectorAll('.auth-tabs button');
+  const togglePass = $('#auth-toggle-pass');
+
+  const HINTS = {
+    signin: 'Entra para jugar en cualquier dispositivo sin perder el progreso.',
+    signup: 'Crea una cuenta para guardar tu partida en la nube.',
+    reset: 'Te enviaremos un correo para restablecer tu contraseña.',
+  };
+  const LABELS = { signin: 'Entrar', signup: 'Crear cuenta', reset: 'Enviar correo' };
+
+  function setMode(m) {
+    authMode = m;
+    tabs.forEach(t => t.setAttribute('aria-selected', t.dataset.mode === m ? 'true' : 'false'));
+    hint.textContent = HINTS[m];
+    submit.textContent = LABELS[m];
+    passField.hidden = m === 'reset';
+    pass.required = m !== 'reset';
+    pass2Field.hidden = m !== 'signup';
+    pass2.required = m === 'signup';
+    pass.autocomplete = m === 'signup' ? 'new-password' : 'current-password';
+    err.hidden = true; ok.hidden = true;
+  }
+  tabs.forEach(t => t.addEventListener('click', () => setMode(t.dataset.mode)));
+  setMode('signin');
+
+  togglePass.addEventListener('click', () => {
+    const show = pass.type === 'password';
+    pass.type = show ? 'text' : 'password';
+    togglePass.textContent = show ? '🙈' : '👁️';
+    togglePass.setAttribute('aria-label', show ? 'Ocultar contraseña' : 'Mostrar contraseña');
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    err.hidden = true; ok.hidden = true;
+    const emailVal = email.value.trim();
+    if (!emailVal) return;
+    submit.disabled = true;
+    try {
+      if (authMode === 'signin') {
+        const r = await Auth.signIn(emailVal, pass.value);
+        if (r.error) { err.textContent = r.error; err.hidden = false; }
+      } else if (authMode === 'signup') {
+        if (pass.value.length < 6) { err.textContent = 'La contraseña debe tener al menos 6 caracteres.'; err.hidden = false; return; }
+        if (pass.value !== pass2.value) { err.textContent = 'Las contraseñas no coinciden.'; err.hidden = false; return; }
+        const r = await Auth.signUp(emailVal, pass.value);
+        if (r.error) { err.textContent = r.error; err.hidden = false; }
+      } else if (authMode === 'reset') {
+        const r = await Auth.resetPassword(emailVal);
+        if (r.error) { err.textContent = r.error; err.hidden = false; }
+        else { ok.textContent = 'Te hemos enviado un correo para restablecer tu contraseña.'; ok.hidden = false; }
+      }
+    } finally {
+      submit.disabled = false;
+    }
+  });
+
+  $('#auth-skip').addEventListener('click', () => {
+    screen.hidden = true;
+    if (skipToGuest) skipToGuest();
+  });
+}
+
+// Espera a que haya sesión (o a que el usuario elija jugar sin cuenta).
+function resolveAuth() {
+  return new Promise((resolve) => {
+    let settled = false;
+    skipToGuest = () => {
+      if (settled) return;
+      settled = true;
+      resolve({ uid: null, state: null, cloudMs: 0 });
+    };
+    Auth.onAuthChange(async (user) => {
+      if (settled) {
+        // La sesión cambia después de haber empezado a jugar (cierre o cambio de cuenta).
+        if ((user?.uid || null) !== currentUid) location.reload();
+        return;
+      }
+      if (!user) { $('#auth-screen').hidden = false; return; }
+      settled = true;
+      $('#auth-screen').hidden = true;
+      const cloud = await Auth.loadCloudSave(user.uid);
+      if (cloud) {
+        resolve({ uid: user.uid, state: { ...S.load(), ...cloud.state }, cloudMs: cloud.updatedAtMs });
+      } else {
+        const ms = await Auth.saveCloudSave(user.uid, state);
+        resolve({ uid: user.uid, state: null, cloudMs: ms || Date.now() });
+      }
+    });
+  });
+}
+
+// Un dispositivo abierto sin tocar comprueba si hay una partida más reciente en la nube.
+function startCloudPolling() {
+  setInterval(async () => {
+    if (!currentUid || document.hidden || cloudTimer) return;
+    if (performance.now() - lastInteraction < 20000) return;
+    const remoteMs = await Auth.peekCloudUpdatedAt(currentUid);
+    if (remoteMs <= lastCloudMs) return;
+    const cloud = await Auth.loadCloudSave(currentUid);
+    if (!cloud || cloud.updatedAtMs <= lastCloudMs) return;
+    state = { ...state, ...cloud.state };
+    lastCloudMs = cloud.updatedAtMs;
+    S.save(state);
+    world.name = state.name;
+    world.commits = state.commits;
+    world.setGrowth(S.stage(state.level));
+    world.setCosmetics(state.equipped);
+    world.setMode(state.mode);
+    enterRoom(state.room || 'salon');
+    world.setMood(S.mood(state));
+    toast('Partida actualizada desde otro dispositivo.', 3000);
+  }, 30000);
 }
 
 // ---------------- arranque ----------------
@@ -612,17 +803,31 @@ async function start() {
     $('#loader-text').textContent = 'Tu navegador no soporta WebGL, que es lo que usa Wapuu para verse en 3D.';
     return;
   }
-  try {
-    await document.fonts?.load('600 24px "Fira Code"');
-    await document.fonts?.load('900 52px "Grandstander"');
-  } catch (e) {}
-  try {
-    await world.load(p => { bar.style.width = (5 + p * 95) + '%'; });
-  } catch (e) {
-    $('#loader-text').textContent = 'No se ha podido cargar a Wapuu. Revisa tu conexión y recarga la página.';
-    console.error(e);
-    return;
-  }
+
+  setupAuthScreen();
+  const authP = resolveAuth();
+
+  const worldP = (async () => {
+    try {
+      await document.fonts?.load('600 24px "Fira Code"');
+      await document.fonts?.load('900 52px "Grandstander"');
+    } catch (e) {}
+    try {
+      await world.load(p => { bar.style.width = (5 + p * 95) + '%'; });
+      return true;
+    } catch (e) {
+      $('#loader-text').textContent = 'No se ha podido cargar a Wapuu. Revisa tu conexión y recarga la página.';
+      console.error(e);
+      return false;
+    }
+  })();
+
+  const auth = await authP;
+  currentUid = auth.uid;
+  lastCloudMs = auth.cloudMs || 0;
+  if (auth.state) { state = auth.state; isNew = false; }
+
+  if (!(await worldP)) return;
 
   const away = S.catchUp(state);
   world.name = state.name;
@@ -651,8 +856,9 @@ async function start() {
     setTimeout(() => say(`¡Hola! Soy ${state.name}. Cuida de mí.`, 3200), 600);
   }
   S.save(state);
+  startCloudPolling();
 
-  document.addEventListener('visibilitychange', () => { if (document.hidden) S.save(state); else { S.catchUp(state); renderHud(); } });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) saveNow(); else { S.catchUp(state); renderHud(); } });
   window.addEventListener('pagehide', saveNow);
   loop();
 }

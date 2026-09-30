@@ -21,6 +21,38 @@
   </script>
 </head>
 <body>
+  <!-- Pantalla de acceso: entrar, crear cuenta o recuperar contraseña -->
+  <div id="auth-screen" hidden>
+    <form id="auth-form" class="auth-card">
+      <div class="auth-head">
+        <span class="paw" aria-hidden="true">🐾</span>
+        <h1>Wapuu Game</h1>
+      </div>
+      <div class="auth-tabs" role="tablist">
+        <button type="button" data-mode="signin" role="tab" aria-selected="true">Entrar</button>
+        <button type="button" data-mode="signup" role="tab" aria-selected="false">Crear cuenta</button>
+        <button type="button" data-mode="reset" role="tab" aria-selected="false">Recuperar</button>
+      </div>
+      <p id="auth-hint" class="auth-hint"></p>
+      <label>Correo
+        <input id="auth-email" type="email" autocomplete="email" required>
+      </label>
+      <label id="auth-pass-field">Contraseña
+        <span class="pass-wrap">
+          <input id="auth-password" type="password" autocomplete="current-password" minlength="6">
+          <button type="button" id="auth-toggle-pass" class="icon-btn" aria-label="Mostrar contraseña">👁️</button>
+        </span>
+      </label>
+      <label id="auth-pass2-field" hidden>Repite la contraseña
+        <input id="auth-password2" type="password" autocomplete="new-password" minlength="6">
+      </label>
+      <p id="auth-error" class="auth-error" role="alert" hidden></p>
+      <p id="auth-ok" class="auth-ok" role="status" hidden></p>
+      <button type="submit" id="auth-submit" class="auth-submit">Entrar</button>
+      <button type="button" id="auth-skip" class="auth-skip">Jugar sin cuenta en este dispositivo</button>
+    </form>
+  </div>
+
   <canvas id="scene" aria-label="Habitación de Wapuu"></canvas>
 
   <!-- Capa de efectos (corazones, zetas, bugs, comida) -->
@@ -89,6 +121,21 @@
         <button value="save" class="primary">Guardar</button>
         <button value="reset" id="reset-btn" class="danger">Empezar de cero</button>
       </div>
+      <div id="account-box" class="account-box" hidden>
+        <p class="account-email" id="account-email"></p>
+        <p class="account-sync" id="account-sync"></p>
+        <p class="account-verify" id="account-verify" hidden>
+          Aún no has verificado tu correo.
+          <button type="button" id="resend-verify-btn">Reenviar correo</button>
+        </p>
+        <div class="menu-actions">
+          <button type="button" id="signout-btn">Cerrar sesión</button>
+        </div>
+      </div>
+      <p class="account-guest" id="account-guest" hidden>
+        Estás jugando sin cuenta: el progreso solo se guarda en este dispositivo.
+        <button type="button" id="account-login-btn">Crear cuenta o iniciar sesión</button>
+      </p>
       <p class="credits">
         Wapuu fue diseñado por Kazuko Kaneuchi. Modelo 3D de Takeshi Kashihara
         (<a href="https://github.com/wckansai2016/3d-wapuu" target="_blank" rel="noopener">3d-wapuu</a>).
