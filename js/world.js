@@ -16,6 +16,38 @@ const COLORS = {
   eye: 0x141414,
 };
 
+// ---------- suciedad ----------
+// Manchas generadas con ruido 3D sobre la posición del modelo, así no dependen de sus UV.
+const dirtUniform = { value: 0 };
+function dirtify(material) {
+  material.onBeforeCompile = (sh) => {
+    sh.uniforms.uDirt = dirtUniform;
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vDirtPos;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvDirtPos = position;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', `#include <common>
+uniform float uDirt;
+varying vec3 vDirtPos;
+float dHash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+float dNoise(vec3 x) {
+  vec3 i = floor(x); vec3 f = fract(x); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(dHash(i), dHash(i + vec3(1,0,0)), f.x), mix(dHash(i + vec3(0,1,0)), dHash(i + vec3(1,1,0)), f.x), f.y),
+             mix(mix(dHash(i + vec3(0,0,1)), dHash(i + vec3(1,0,1)), f.x), mix(dHash(i + vec3(0,1,1)), dHash(i + vec3(1,1,1)), f.x), f.y), f.z);
+}`)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+if (uDirt > 0.001) {
+  vec3 q = vDirtPos * 1.7;
+  float n = dNoise(q) * 0.6 + dNoise(q * 2.3 + 7.0) * 0.3 + dNoise(q * 5.1 + 3.0) * 0.1;
+  float th = 0.74 - uDirt * 0.3;
+  float spot = smoothstep(th, th + 0.06, n);
+  float speck = step(0.94 - uDirt * 0.06, dNoise(q * 9.0 + 11.0));
+  diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.8, 0.72, 0.6), uDirt * 0.65);
+  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.30, 0.20, 0.10), max(spot, speck * 0.85) * min(1.0, uDirt * 1.5));
+}`);
+  };
+}
+
 const ease = {
   inOut: t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2,
   out: t => 1 - Math.pow(1 - t, 3),
@@ -173,6 +205,8 @@ export class World {
     this.name = 'Wapuu';
     this.fx = { jump: 0, squash: 0, spin: 0, lean: 0, lookX: 0, eyes: 1, wag: 1, earDroop: 0 };
     this.onCommit = () => {};
+    this.growth = { scale: 1, eyes: 1 };
+    this.dirtTarget = 0;
     this.raycaster = new THREE.Raycaster();
     this.pointer = new THREE.Vector2();
 
@@ -316,7 +350,9 @@ export class World {
       this.keys = box(2.7, 0.06, 0.8, 0x3858E9, 2.2, 3.5, 0.9); this.keys.rotation.y = 0.5; desk.add(this.keys);
       desk.add(cyl(0.45, 0.4, 0.9, 0xF6C928, -3.4, 3.78, 1.2));
       desk.position.set(-1.6, 0, 0.2); g.add(desk);
-      this.rooms.despacho = { group: g, pet: new THREE.Vector3(2.7, 0, 2.2), rotY: -0.55, wide: 1.6 };
+      // taburete para cuando Wapuu es pequeño
+      this.stool = cyl(1.5, 1.3, 1, 0x3858E9, 2.7, 0.5, 2.2); g.add(this.stool);
+      this.rooms.despacho = { group: g, pet: new THREE.Vector3(2.7, 0, 2.2), rotY: -0.55, wide: 1.6, lift: 4.4 };
     }
 
     // ----- Baño -----
@@ -446,6 +482,7 @@ export class World {
     const earMat = mat(COLORS.ear, { roughness: 0.55 });
     const eyeMat = mat(COLORS.eye, { roughness: 0.15 });
     const ballMat = new THREE.MeshStandardMaterial({ map: this.wpLogoTex, roughness: 0.35 });
+    dirtify(bodyMat); dirtify(earMat); dirtify(ballMat);
 
     this.pet = new THREE.Group();      // posición en la habitación
     this.hop = new THREE.Group();      // saltos
@@ -494,6 +531,122 @@ export class World {
       this.squashG.add(c); this.cheeks.push(c);
     }
     this.cheekMat = cheekMat;
+
+    // soportes para cosméticos
+    this.wearHead = new THREE.Group(); this.squashG.add(this.wearHead);
+    this.wearFace = new THREE.Group(); this.squashG.add(this.wearFace);
+    this.wearEar = new THREE.Group(); this.earR.add(this.wearEar);
+    this.pet.scale.setScalar(this.growth.scale);
+  }
+
+  // ---------- crecimiento ----------
+  setGrowth({ scale, eyes }, animate = false) {
+    const from = this.growth.scale;
+    this.growth = { scale, eyes };
+    if (!this.pet) return Promise.resolve();
+    this._placePet();
+    if (!animate || Math.abs(from - scale) < 0.001) { this.pet.scale.setScalar(scale); return Promise.resolve(); }
+    return this.tween(1.1, p => {
+      const over = Math.sin(p * Math.PI) * 0.12 * (1 - p);
+      this.pet.scale.setScalar(THREE.MathUtils.lerp(from, scale, p) + over);
+    }, ease.out).then(() => this.pet.scale.setScalar(scale));
+  }
+
+  // ---------- suciedad ----------
+  setDirt(v) { this.dirtTarget = Math.max(0, Math.min(1, v)); }
+
+  // ---------- cosméticos ----------
+  setCosmetics(eq = {}) {
+    if (!this.pet) return;
+    for (const [slot, g] of [['head', this.wearHead], ['face', this.wearFace], ['ear', this.wearEar]]) {
+      while (g.children.length) g.remove(g.children[0]);
+      if (eq[slot]) { const m = this._cosmetic(eq[slot]); if (m) g.add(m); }
+    }
+  }
+
+  _cosmetic(id) {
+    const g = new THREE.Group();
+    const shiny = (c) => mat(c, { roughness: 0.35 });
+    if (id === 'party') {
+      const tex = canvasTex(256, 256, (c, w, h) => {
+        c.fillStyle = '#3858E9'; c.fillRect(0, 0, w, h);
+        c.fillStyle = '#F6C928';
+        for (let i = -h; i < w * 2; i += 48) { c.beginPath(); c.moveTo(i, 0); c.lineTo(i + 24, 0); c.lineTo(i + 24 - h, h); c.lineTo(i - h, h); c.fill(); }
+      });
+      const cone = new THREE.Mesh(new THREE.ConeGeometry(1.0, 2.4, 32, 1, true), new THREE.MeshStandardMaterial({ map: tex, roughness: .6, side: THREE.DoubleSide }));
+      cone.position.y = 1.2; cone.castShadow = true;
+      g.add(cone, sphere(0.3, 0xE0413A, 0, 2.45, 0));
+      g.position.set(0.1, 5.3, -0.35); g.rotation.z = -0.18;
+    }
+    if (id === 'cap') {
+      const dome = new THREE.Mesh(new THREE.SphereGeometry(1.45, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), shiny(0x3858E9));
+      dome.scale.y = 0.72; dome.castShadow = true;
+      const brim = cyl(1.2, 1.2, 0.1, 0x1D35B4, 0, 0.05, 1.15);
+      brim.scale.z = 0.75;
+      const logo = new THREE.Mesh(new THREE.CircleGeometry(0.42, 32), new THREE.MeshStandardMaterial({ map: this.wpLogoTex, roughness: .5 }));
+      logo.position.set(0, 0.5, 1.28); logo.rotation.x = -0.5;
+      g.add(dome, brim, logo, sphere(0.14, 0x1D35B4, 0, 1.05, 0));
+      g.position.set(0, 5.05, -0.3); g.rotation.x = -0.1;
+    }
+    if (id === 'tophat') {
+      g.add(cyl(1.5, 1.5, 0.12, 0x1E1E1E, 0, 0, 0), cyl(0.95, 0.95, 1.9, 0x1E1E1E, 0, 1, 0), cyl(0.97, 0.97, 0.35, 0xE0413A, 0, 0.25, 0));
+      g.position.set(0.15, 5.45, -0.4); g.rotation.z = -0.12;
+    }
+    if (id === 'crown') {
+      const gold = mat(0xF2B705, { roughness: 0.25, metalness: 0.7 });
+      const band = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.05, 0.6, 32, 1, true), gold);
+      band.material.side = THREE.DoubleSide; band.castShadow = true;
+      g.add(band);
+      const gems = [0xE0413A, 0x3858E9, 0x3FB950, 0xFF5FA2, 0xFFFFFF];
+      for (let i = 0; i < 5; i++) {
+        const a = i / 5 * Math.PI * 2 + Math.PI / 2;
+        const spike = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.6, 12), gold);
+        spike.position.set(Math.cos(a) * 1.0, 0.58, Math.sin(a) * 1.0); spike.castShadow = true;
+        g.add(spike, sphere(0.13, gems[i], Math.cos(a) * 1.07, 0, Math.sin(a) * 1.07, { roughness: .1 }));
+        g.add(sphere(0.08, 0xF2B705, Math.cos(a) * 1.0, 0.92, Math.sin(a) * 1.0, { metalness: .7, roughness: .25 }));
+      }
+      g.position.set(0, 5.55, -0.35);
+    }
+    if (id === 'sunglasses' || id === 'nerd') {
+      const nerd = id === 'nerd';
+      const frameMat = shiny(nerd ? 0x1E1E1E : 0x111111);
+      for (const x of [-0.52, 0.52]) {
+        const lens = nerd
+          ? new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.08, 10, 32), frameMat)
+          : new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.44, 0.1, 32), mat(0x0B0F1A, { roughness: 0.05, metalness: 0.5 }));
+        if (!nerd) lens.rotation.x = Math.PI / 2;
+        lens.position.set(x, 0, 0); lens.rotation.y = x * 0.5;
+        g.add(lens);
+        if (nerd) {
+          const glass = new THREE.Mesh(new THREE.CircleGeometry(0.38, 32), new THREE.MeshStandardMaterial({ color: 0xDDEBFF, transparent: true, opacity: 0.25, roughness: 0.05 }));
+          glass.position.set(x, 0, 0.01); glass.rotation.y = x * 0.5; g.add(glass);
+        }
+        const arm = box(0.07, 0.07, 1.2, frameMat, x * 1.85, 0.05, -0.55);
+        arm.rotation.y = x > 0 ? 0.35 : -0.35; g.add(arm);
+      }
+      g.add(box(0.36, 0.08, 0.08, frameMat, 0, 0.1, 0.08));
+      g.position.set(0, 4.3, 2.12);
+    }
+    if (id === 'bow') {
+      const pink = shiny(0xFF5FA2);
+      for (const d of [-1, 1]) {
+        const c = new THREE.Mesh(new THREE.ConeGeometry(0.34, 0.7, 20), pink);
+        c.rotation.z = d * Math.PI / 2; c.position.x = d * 0.33; c.castShadow = true; g.add(c);
+      }
+      g.add(sphere(0.16, 0xE0418A, 0, 0, 0));
+      g.position.set(-0.45, 0.55, 0.45); g.rotation.z = 0.4;
+    }
+    if (id === 'flower') {
+      for (let i = 0; i < 6; i++) {
+        const a = i / 6 * Math.PI * 2;
+        const pet = sphere(0.2, 0xFFFFFF, Math.cos(a) * 0.26, Math.sin(a) * 0.26, 0);
+        pet.scale.z = 0.4; g.add(pet);
+      }
+      g.add(sphere(0.16, 0xF2B705, 0, 0, 0.05));
+      g.position.set(-0.45, 0.55, 0.5); g.rotation.x = -0.4;
+    }
+    g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+    return g;
   }
 
   // ---------- API pública ----------
@@ -513,9 +666,16 @@ export class World {
     const r = this.rooms[this.room];
     if (!r || !this.pet) return;
     const sleeping = this.mode === 'sleeping' && this.room === 'dormitorio';
+    const small = 1 - this.growth.scale;
     this.pet.position.copy(sleeping ? r.bed : r.pet);
+    if (!sleeping && r.lift) this.pet.position.y += r.lift * small;   // el bebé se sube a la silla
     this.pet.rotation.set(sleeping ? -0.35 : 0, r.rotY || 0, 0);
     this.blanket.visible = sleeping;
+    this.blanket.scale.y = 0.35 + 0.65 * this.growth.scale;
+    const h = r.lift ? r.lift * small : 0;
+    this.stool.visible = h > 0.1;
+    this.stool.scale.y = Math.max(h, 0.01);
+    this.stool.position.y = h / 2;
   }
 
   _applyLighting() {
@@ -570,7 +730,7 @@ export class World {
   async throwBall() {
     const b = this.toyBall;
     const from = new THREE.Vector3(6, 6, 12);
-    const to = new THREE.Vector3(0, 7.2, 1.8);
+    const to = new THREE.Vector3(0, 1 + 6.2 * this.growth.scale, 1.8);
     const jumpP = this.tween(0.55, () => {}).then(() => this.jump(2.4));
     await this.tween(0.8, p => {
       b.position.lerpVectors(from, to, p);
@@ -587,7 +747,7 @@ export class World {
   }
 
   async goToilet() {
-    const home = this.rooms.bano.pet.clone();
+    const home = this.pet.position.clone();
     const seat = this.wcSeat;
     await this.tween(0.7, p => {
       this.pet.position.lerpVectors(home, seat, p);
@@ -744,12 +904,17 @@ export class World {
         const bt = t - this.nextBlink;
         if (bt < 0.14) eyeY *= 0.1; else this.nextBlink = t + 2 + Math.random() * 3.5;
       }
-      this.eyes.scale.y += (eyeY - this.eyes.scale.y) * 0.5;
+      const eb = this.growth.eyes;
+      this.eyes.scale.x = this.eyes.scale.z = eb;
+      this.eyes.scale.y += (eyeY * eb - this.eyes.scale.y) * 0.5;
 
       // mofletes
       const cheekTarget = happy || this.fx.jump > 0.1 ? 0.55 : 0;
       this.cheekMat.opacity += (cheekTarget - this.cheekMat.opacity) * 0.08;
     }
+
+    // la suciedad se va (o aparece) poco a poco
+    dirtUniform.value += (this.dirtTarget - dirtUniform.value) * Math.min(1, dt * 2.5);
 
     // ducha
     if (this.drops.visible) {
