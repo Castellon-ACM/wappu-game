@@ -18,6 +18,10 @@ let bubbleUntil = 0;
 let nextComplaint = performance.now() + 8000;
 let nextBug = 0;
 let nextZ = 0;
+let nextFly = 0;
+
+// 0 = limpio, 1 = muy sucio. Empieza a mancharse por debajo del 55 % de higiene.
+const dirtLevel = () => Math.max(0, Math.min(1, (55 - state.stats.hygiene) / 40));
 
 const ROOM_NAMES = { salon: 'Salón', cocina: 'Cocina', despacho: 'Despacho', bano: 'Baño', dormitorio: 'Dormitorio' };
 
@@ -57,15 +61,23 @@ function coinFx(n) {
   c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump');
   sfx.coin();
   const r = c.getBoundingClientRect();
-  floatAt(r.left + r.width / 2, r.bottom + 10, `+${n}🪙`, 'font-size:1rem;font-weight:900;');
+  floatAt(r.left + r.width / 2, r.bottom + 10, `${n > 0 ? '+' : ''}${n}🪙`, 'font-size:1rem;font-weight:900;');
 }
 
 function gain({ coins = 0, xp = 0 } = {}) {
   if (coins) { state.coins += coins; coinFx(coins); }
+  const before = S.stage(state.level);
   if (xp && S.addXp(state, xp)) {
     sfx.level();
-    toast(`¡Nivel ${state.level}! Ahora eres ${S.title(state.level)} (+${10 * state.level} 🪙)`, 3200);
-    say('¡He subido de nivel!');
+    const now = S.stage(state.level);
+    world.setGrowth(now, true);
+    if (now.name !== before.name) {
+      toast(`¡${state.name} ha crecido! Ahora es ${now.name.toLowerCase()} (+${10 * state.level} 🪙)`, 3600);
+      say('¡Mira qué grande estoy!');
+    } else {
+      toast(`¡Nivel ${state.level}! Ahora eres ${S.title(state.level)} (+${10 * state.level} 🪙)`, 3200);
+      say('¡He crecido un poquito!');
+    }
     burst('⭐', 6);
   }
   renderHud();
@@ -74,7 +86,8 @@ function gain({ coins = 0, xp = 0 } = {}) {
 // ---------------- HUD ----------------
 function renderHud() {
   $('#name-text').textContent = state.name;
-  $('#level-text').textContent = `Nv. ${state.level} · ${S.title(state.level)}`;
+  $('#level-text').textContent = `Nv. ${state.level} · ${S.stage(state.level).name}`;
+  $('#level-text').title = S.title(state.level);
   $('#xp-bar').style.width = (state.xp / S.xpNeeded(state.level) * 100) + '%';
   $('#coins').textContent = state.coins;
   for (const li of document.querySelectorAll('#stats li')) {
@@ -111,6 +124,7 @@ function renderActions() {
       btn({ emo: '🤗', label: 'Mimos', onClick: () => pet(true) }),
       btn({ emo: '⚽', label: 'Pelota', onClick: playBall }),
       btn({ emo: '💃', label: 'Bailar', onClick: dance }),
+      btn({ emo: '🛍️', label: 'Tienda', onClick: openShop }),
     );
   }
   if (r === 'cocina') {
@@ -284,27 +298,43 @@ function toilet() {
   });
 }
 
+const soapCursor = $('#soap-cursor');
+function moveSoap(x, y) { soapCursor.style.left = x + 'px'; soapCursor.style.top = y + 'px'; }
 function setSoap(on) {
   soapMode = on;
   $('#scene').classList.toggle('soap', on);
+  soapCursor.hidden = !on;
+  if (on) { const b = world.bellyPos(); moveSoap(b.x + 70, b.y); }
   if (state.room === 'bano') renderActions();
 }
 function toggleSoap() {
   setSoap(!soapMode);
-  if (soapMode) toast('Frota a Wapuu con el dedo o el ratón');
+  if (soapMode) toast('Arrastra el jabón sobre Wapuu para frotarle');
 }
 
 function shower() {
   setSoap(false);
   run(async () => {
     sfx.water();
-    const bonus = Math.round(state.soap * 0.4);
+    const bonus = Math.round(state.soap * 0.25);
+    // la ducha siempre lo deja limpio; con jabón, todavía más
+    const target = Math.min(100, Math.max(state.stats.hygiene + 30, 80) + bonus);
+    const start = state.stats.hygiene;
+    const t0 = performance.now();
     const w = setInterval(() => sfx.water(), 500);
+    const wash = setInterval(() => {
+      const p = Math.min(1, (performance.now() - t0) / 2400);
+      state.stats.hygiene = start + (target - start) * p;
+      world.setDirt(dirtLevel());
+    }, 80);
     await world.shower();
-    clearInterval(w);
-    S.apply(state, { hygiene: 28 + bonus, fun: 3 });
+    clearInterval(w); clearInterval(wash);
+    state.stats.hygiene = target;
+    world.setDirt(dirtLevel());
+    S.apply(state, { fun: 3 });
+    const wasDirty = start < 40;
     state.soap = 0;
-    say(bonus > 10 ? '¡Limpísimo y con olor a jabón!' : '¡Fresquito!', 1800);
+    say(bonus > 10 ? '¡Limpísimo y con olor a jabón!' : wasDirty ? '¡Por fin limpio!' : '¡Fresquito!', 1800);
     burst('✨', 4);
     gain({ xp: 3 });
   });
@@ -357,6 +387,8 @@ function setupPointer() {
     if (!world.hit(e.clientX, e.clientY)) return;
     if (soapMode) scrub(e); else pet();
   });
+  window.addEventListener('pointermove', (e) => { if (soapMode) moveSoap(e.clientX, e.clientY); });
+  cv.addEventListener('pointerdown', (e) => { if (soapMode) moveSoap(e.clientX, e.clientY); });
   cv.addEventListener('pointermove', (e) => {
     if (!down || !soapMode) return;
     const now = performance.now();
@@ -364,13 +396,17 @@ function setupPointer() {
     lastSoap = now;
     if (world.hit(e.clientX, e.clientY)) scrub(e);
   });
-  const up = () => { down = false; };
+  const up = () => { down = false; soapCursor.classList.remove('rub'); };
   cv.addEventListener('pointerup', up);
   cv.addEventListener('pointerleave', up);
   cv.addEventListener('pointercancel', up);
 }
 
+let rubTimer;
 function scrub(e) {
+  soapCursor.classList.add('rub');
+  clearTimeout(rubTimer);
+  rubTimer = setTimeout(() => soapCursor.classList.remove('rub'), 250);
   const el = document.createElement('div');
   el.className = 'bubble-fx';
   const s = 14 + Math.random() * 26;
@@ -382,6 +418,7 @@ function scrub(e) {
   if (Math.random() < 0.3) sfx.pop();
   state.soap = Math.min(100, state.soap + 1.5);
   S.apply(state, { hygiene: 0.35 });
+  world.setDirt(dirtLevel());
   if (state.soap >= 100 && Math.random() < 0.05) say('¡Ahora a la ducha!', 1500);
 }
 
@@ -404,6 +441,7 @@ function loop() {
     if (state.mode === 'sleeping' && state.stats.energy >= 100) wake('¡Buenos días! Energía al 100 %.');
     if (state.mode === 'coding' && state.stats.energy < 4) stopCoding('No puedo más, necesito dormir.');
     world.setMood(S.mood(state));
+    world.setDirt(dirtLevel());
     renderHud();
     if (now - lastSave > 5000) { S.save(state); lastSave = now; }
   }
@@ -435,6 +473,18 @@ function loop() {
     if (Math.random() < 0.3) sfx.snore();
   }
 
+  // moscas cuando está muy sucio
+  if (dirtLevel() > 0.55 && now > nextFly && state.mode !== 'sleeping') {
+    nextFly = now + 1800 + Math.random() * 2000;
+    const h = world.headPos();
+    const f = document.createElement('div');
+    f.className = 'flybug'; f.textContent = '🪰';
+    f.style.left = h.x + (Math.random() * 120 - 60) + 'px';
+    f.style.top = h.y + 20 + Math.random() * 60 + 'px';
+    fx.appendChild(f);
+    setTimeout(() => f.remove(), 3100);
+  }
+
   // bocadillo sigue a Wapuu
   if (!bubble.hidden) {
     if (now > bubbleUntil) bubble.hidden = true;
@@ -446,16 +496,83 @@ function loop() {
   world.update();
 }
 
+// ---------------- tienda de cosméticos ----------------
+const shop = $('#shop');
+function openShop() {
+  if (busy) return;
+  renderShop();
+  shop.showModal();
+}
+function renderShop() {
+  $('#shop-coins').textContent = state.coins;
+  const grid = $('#shop-grid');
+  grid.innerHTML = '';
+  for (const slot of Object.keys(S.SLOT_NAMES)) {
+    const h = document.createElement('p');
+    h.className = 'shop-slot'; h.textContent = S.SLOT_NAMES[slot];
+    const row = document.createElement('div'); row.className = 'shop-row';
+    for (const it of S.COSMETICS.filter(c => c.slot === slot)) {
+      const owned = state.owned.includes(it.id);
+      const worn = state.equipped[slot] === it.id;
+      const locked = !owned && it.level && state.level < it.level;
+      const card = document.createElement('div');
+      card.className = 'item' + (worn ? ' worn' : '');
+      card.innerHTML = `<span class="emo" aria-hidden="true">${it.emo}</span><span class="iname">${it.name}</span>`;
+      const b = document.createElement('button');
+      if (worn) { b.textContent = 'Quitar'; b.className = 'off'; }
+      else if (owned) { b.textContent = 'Poner'; b.className = 'wear'; }
+      else if (locked) { b.textContent = `🔒 Nv. ${it.level}`; b.disabled = true; }
+      else { b.textContent = `🪙 ${it.price}`; b.disabled = state.coins < it.price; }
+      b.setAttribute('aria-label', `${b.textContent} ${it.name}`);
+      b.addEventListener('click', () => shopAction(it));
+      card.append(b);
+      row.append(card);
+    }
+    grid.append(h, row);
+  }
+}
+function shopAction(it) {
+  unlock();
+  const owned = state.owned.includes(it.id);
+  if (state.equipped[it.slot] === it.id) {
+    delete state.equipped[it.slot];
+    sfx.tap();
+  } else if (owned) {
+    state.equipped[it.slot] = it.id;
+    sfx.happy(); world.squish(); burst('✨', 3);
+  } else {
+    if (state.coins < it.price) { toast('Te faltan monedas. Programa en el despacho para ganar más.'); return; }
+    state.coins -= it.price;
+    state.owned.push(it.id);
+    state.equipped[it.slot] = it.id;
+    coinFx(-it.price);
+    sfx.happy(); world.squish(); burst('✨', 4);
+    say(['¡Me encanta!', '¿Me queda bien?', '¡Qué estilo!'][Math.floor(Math.random() * 3)], 1800);
+    gain({ xp: 3 });
+  }
+  world.setCosmetics(state.equipped);
+  S.save(state);
+  renderHud();
+  renderShop();
+}
+
 // ---------------- menú ----------------
 function setupMenu() {
   const dlg = $('#menu');
   const open = () => {
     $('#name-input').value = state.name;
     const days = Math.max(1, Math.round((Date.now() - state.createdAt) / 86400000));
-    $('#stats-line').textContent = `${state.commits} commits, ${state.bugs} bugs aplastados, ${days} día${days > 1 ? 's' : ''} juntos.`;
+    $('#stats-line').textContent = `${S.title(state.level)}. ${state.commits} commits, ${state.bugs} bugs aplastados, ${days} día${days > 1 ? 's' : ''} juntos.`;
     dlg.showModal();
   };
   $('#menu-btn').addEventListener('click', open);
+  $('#shop-btn').addEventListener('click', () => { unlock(); sfx.tap(); openShop(); });
+  $('#shop-close').addEventListener('click', () => shop.close());
+  shop.addEventListener('click', (e) => {
+    if (e.target !== shop) return;
+    const r = shop.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) shop.close();
+  });
   $('#pet-name').addEventListener('click', open);
   $('#reset-btn').addEventListener('click', (e) => {
     if (!confirm('¿Seguro? Se borrará todo el progreso de tu Wapuu.')) { e.preventDefault(); return; }
@@ -507,6 +624,9 @@ async function start() {
   world.commits = state.commits;
   world.onCommit = onCommit;
   world.mode = state.mode;
+  world.setGrowth(S.stage(state.level));
+  world.setCosmetics(state.equipped);
+  world.setDirt(dirtLevel());
 
   document.querySelectorAll('#rooms button').forEach(b => b.addEventListener('click', () => { unlock(); sfx.tap(); goRoom(b.dataset.room); }));
   world.setMode(state.mode);

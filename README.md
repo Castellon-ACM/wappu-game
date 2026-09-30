@@ -10,13 +10,19 @@ Wapuu tiene cinco necesidades que bajan con el tiempo (también cuando cierras l
 
 | Habitación | Qué puedes hacer |
 |---|---|
-| 🛋️ Salón | Darle mimos (o tocar a Wapuu), lanzarle la pelota, ponerle a bailar |
+| 🛋️ Salón | Darle mimos (o tocar a Wapuu), lanzarle la pelota, ponerle a bailar y abrir la tienda |
 | 🍳 Cocina | Comprar y darle comida: cookies, café, pizza, tortilla, paella… |
 | 💻 Despacho | Ponerle a programar plugins. Cada commit da monedas y, si aparecen bugs, aplástalos para ganar más |
-| 🛁 Baño | Llevarle al váter, frotarle con jabón y darle una ducha |
+| 🛁 Baño | Llevarle al váter, frotarle con jabón (arrastrando el jabón sobre él) y darle una ducha |
 | 🛏️ Dormir | Apagar la luz para que recupere energía |
 
-Programar cansa y da hambre, así que hay que equilibrar trabajo y descanso. Con la experiencia Wapuu sube de nivel, de *Becario del plugin* a *Leyenda del WordCamp*. La partida se guarda en el navegador.
+Programar cansa y da hambre, así que hay que equilibrar trabajo y descanso. La partida se guarda en el navegador.
+
+**Crece contigo.** Wapuu empieza siendo un bebé (pequeño y con los ojos grandes) y crece con cada nivel: bebé, pequeño, joven y adulto a partir del nivel 7. Por el camino gana títulos, de *Becario del plugin* a *Leyenda del WordCamp*.
+
+**Se ensucia.** Si su higiene baja del 55 %, le salen manchas que van a más, y cuando está muy sucio le rondan moscas. Frotarle con jabón y la ducha le dejan limpio otra vez.
+
+**Tienda de cosméticos** (🛍️ arriba o en el salón): flor, lazo, gorro de fiesta, gafas de pasta, gafas de sol, gorra WordPress, chistera y corona. Algunos se desbloquean por nivel. Se puede llevar uno por zona (cabeza, cara y oreja).
 
 ## Tecnología
 
