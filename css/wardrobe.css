@@ -1,0 +1,8 @@
+/* Armario: pestañas deslizables y probador de la tienda. Se carga después de style.css y progress.css. */
+.shop-tabs.scroll { overflow-x: auto; scrollbar-width: none; padding: 2px 2px 4px; }
+.shop-tabs.scroll::-webkit-scrollbar { display: none; }
+.shop-tabs.scroll button { flex: 0 0 auto; white-space: nowrap; padding: 4px 12px; }
+.shop-row .item { cursor: pointer; transition: transform .12s; }
+.shop-row .item:active { transform: scale(.96); }
+.item.trying { background: #FFF1C7; border-color: var(--warn); box-shadow: 0 0 0 3px var(--wapuu), var(--shadow); }
+.item.trying .iname::after { content: " · probando"; font-weight: 500; opacity: .7; }
