@@ -11,6 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Grandstander:wght@500;700;900&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/progress.css">
   <script type="importmap">
   {
     "imports": {
@@ -74,6 +75,7 @@
       </button>
       <div class="hud-right">
         <div class="coins" title="Monedas"><span aria-hidden="true">🪙</span> <strong id="coins">0</strong></div>
+        <button id="quests-btn" class="icon-btn" title="Misiones y pase de batalla" aria-label="Misiones diarias y pase de batalla">🎯<span id="quests-badge" class="badge" aria-hidden="true" hidden>0</span></button>
         <button id="shop-btn" class="icon-btn" title="Tienda" aria-label="Tienda de cosméticos">🛍️</button>
         <button id="mute" class="icon-btn" title="Sonido" aria-label="Activar o desactivar sonido">🔊</button>
         <button id="menu-btn" class="icon-btn" title="Opciones" aria-label="Opciones">⚙️</button>
@@ -112,6 +114,19 @@
       <button id="shop-close" class="icon-btn" aria-label="Cerrar tienda">✕</button>
     </div>
     <div id="shop-grid"></div>
+  </dialog>
+
+  <dialog id="quests" aria-labelledby="quests-title">
+    <div class="shop-head">
+      <h2 id="quests-title">Misiones</h2>
+      <div class="coins"><span aria-hidden="true">🪙</span> <strong id="quests-coins">0</strong></div>
+      <button id="quests-close" class="icon-btn" aria-label="Cerrar misiones">✕</button>
+    </div>
+    <div class="shop-tabs" role="tablist">
+      <button type="button" data-tab="daily" role="tab" aria-selected="true">🎯 Diarias</button>
+      <button type="button" data-tab="pass" role="tab" aria-selected="false">🏆 Pase de batalla</button>
+    </div>
+    <div id="quests-body" role="tabpanel"></div>
   </dialog>
 
   <dialog id="menu">
