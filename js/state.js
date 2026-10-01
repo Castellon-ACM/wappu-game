@@ -6,11 +6,15 @@ const MAX_OFFLINE_MS = 12 * 60 * 60 * 1000; // como mucho 12 h de desgaste fuera
 export const STATS = ['food', 'energy', 'fun', 'bladder', 'hygiene'];
 
 // Puntos por minuto. Negativo = baja.
+// Ritmo pausado, como en Pou: no hace falta estar encima todo el día.
+// Despierto, de 100 a 0 tarda unas: comida 6,5 h · energía 11 h · ánimo 8 h · baño 6,5 h · higiene 14 h.
 const RATES = {
-  awake:    { food: -1.6, energy: -1.0, fun: -1.4, bladder: -1.8, hygiene: -0.8 },
-  sleeping: { food: -0.6, energy: +6.0, fun: -0.2, bladder: -0.7, hygiene: -0.2 },
-  coding:   { food: -2.6, energy: -3.2, fun: -1.0, bladder: -2.2, hygiene: -1.0 },
+  awake:    { food: -0.25, energy: -0.15, fun: -0.2,  bladder: -0.25, hygiene: -0.12 },
+  sleeping: { food: -0.08, energy: +2.0,  fun: -0.03, bladder: -0.1,  hygiene: -0.03 },  // recupera la energía en ~50 min
+  coding:   { food: -0.6,  energy: -0.8,  fun: -0.15, bladder: -0.5,  hygiene: -0.2 },   // ~2 h programando seguidas
 };
+// Con el juego cerrado todo baja a la mitad de ritmo: dejarlo una noche no lo hunde.
+const OFFLINE_FACTOR = 0.5;
 
 export const LEVEL_TITLES = [
   'Becario del plugin',
@@ -106,7 +110,7 @@ export function catchUp(s) {
   const before = { ...s.stats };
   // Programar no sigue fuera del juego: se queda idle.
   if (s.mode === 'coding') s.mode = 'idle';
-  applyRates(s, gap / 60000, { floor: 5 });
+  applyRates(s, gap / 60000 * OFFLINE_FACTOR, { floor: 5 });
   if (s.mode === 'sleeping' && s.stats.energy >= 100) s.mode = 'idle';
   return { minutes: Math.round(gap / 60000), before, after: { ...s.stats } };
 }
@@ -125,7 +129,7 @@ function applyRates(s, minutes, { floor = 0 } = {}) {
     s.stats[k] = clamp(v, Math.min(floor, s.stats[k]));
   }
   if (s.stats.hygiene < 25 || s.stats.bladder < 15 || s.stats.food < 15) {
-    s.stats.fun = clamp(s.stats.fun - 1.2 * minutes);
+    s.stats.fun = clamp(s.stats.fun - 0.2 * minutes);
   }
 }
 
