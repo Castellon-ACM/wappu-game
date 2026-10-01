@@ -2,6 +2,8 @@ import { World } from './world.js';
 import * as S from './state.js';
 import { sfx, toggleMute, isMuted, unlock } from './audio.js';
 import * as Auth from './auth.js';
+import * as P from './progress.js';
+import { cosmetic } from './pass-cosmetics.js';
 
 const $ = (sel) => document.querySelector(sel);
 const fx = $('#fx');
@@ -115,7 +117,11 @@ function coinFx(n) {
 function gain({ coins = 0, xp = 0 } = {}) {
   if (coins) { state.coins += coins; coinFx(coins); }
   const before = S.stage(state.level);
-  if (xp && S.addXp(state, xp)) {
+  // toda la experiencia cuenta también para el pase de batalla
+  const passUps = xp ? P.addPassXp(state, xp) : 0;
+  const levelUp = xp && S.addXp(state, xp);
+  if (passUps) passLevelUp(levelUp ? 3400 : 0);
+  if (levelUp) {
     sfx.level();
     const now = S.stage(state.level);
     world.setGrowth(now, true);
@@ -147,6 +153,11 @@ function renderHud() {
     li.title = `${li.querySelector('small').textContent}: ${Math.round(v)}%`;
   }
   document.querySelectorAll('.act[data-price]').forEach(b => { b.disabled = state.coins < +b.dataset.price; });
+  const n = P.claimableCount(state);
+  const badge = $('#quests-badge');
+  badge.hidden = n === 0;
+  badge.textContent = n > 9 ? '9+' : n;
+  $('#quests-btn').title = `Misiones y pase de batalla (pase nivel ${state.pass.tier})`;
 }
 
 // ---------------- acciones por habitación ----------------
@@ -173,6 +184,7 @@ function renderActions() {
       btn({ emo: '⚽', label: 'Pelota', onClick: playBall }),
       btn({ emo: '💃', label: 'Bailar', onClick: dance }),
       btn({ emo: '🛍️', label: 'Tienda', onClick: openShop }),
+      btn({ emo: '🎯', label: 'Misiones', onClick: () => openQuests() }),
     );
   }
   if (r === 'cocina') {
@@ -221,6 +233,7 @@ function pet(fromButton = false) {
   world.squish();
   sfx.happy();
   burst('💛', 3);
+  quest('pet');
   if (Math.random() < 0.3) say(['¡Qué gustito!', 'Más, más', '¡Te quiero!', '¡Prrr!'][Math.floor(Math.random() * 4)], 1600);
   gain({ xp: 1 });
 }
@@ -234,6 +247,7 @@ function playBall() {
     burst('🎉', 3);
     say('¡Otra vez!', 1500);
     gain({ xp: 4 });
+    quest('ball');
   });
 }
 
@@ -245,6 +259,7 @@ function dance() {
     S.apply(state, { fun: 10, energy: -5, food: -2 });
     burst('🎵', 4);
     gain({ xp: 3 });
+    quest('dance');
   });
 }
 
@@ -253,6 +268,7 @@ function eat(food) {
   if (state.coins < food.price) { toast('Te faltan monedas. Programa en el despacho para ganar más.'); sfx.sad(); return; }
   run(async () => {
     state.coins -= food.price;
+    quest('spend', food.price);
     renderHud();
     // la comida vuela hasta la boca
     const el = document.createElement('div');
@@ -272,6 +288,7 @@ function eat(food) {
     say(food.say, 1800);
     burst('😋', 1, m);
     gain({ xp: 2 });
+    quest('eat');
   });
 }
 
@@ -298,6 +315,8 @@ function onCommit(file) {
   toast(`Commit en ${file} (+${coins} 🪙)`);
   S.apply(state, { fun: 2 });
   gain({ coins, xp: 6 });
+  quest('commit');
+  quest('earn', coins);
   if (state.room === 'despacho') renderActions();
 }
 
@@ -326,6 +345,8 @@ function spawnBug() {
     state.bugs += 1;
     S.apply(state, { fun: 3 });
     gain({ coins: 3, xp: 2 });
+    quest('bug');
+    quest('earn', 3);
     setTimeout(() => el.remove(), 320);
     if (state.room === 'despacho') renderActions();
   });
@@ -343,6 +364,7 @@ function toilet() {
     say('¡Qué alivio!', 1500);
     burst('✨', 3);
     gain({ xp: 3 });
+    quest('toilet');
   });
 }
 
@@ -385,6 +407,7 @@ function shower() {
     say(bonus > 10 ? '¡Limpísimo y con olor a jabón!' : wasDirty ? '¡Por fin limpio!' : '¡Fresquito!', 1800);
     burst('✨', 4);
     gain({ xp: 3 });
+    quest('shower');
   });
 }
 
@@ -465,6 +488,7 @@ function scrub(e) {
   setTimeout(() => el.remove(), 1600);
   if (Math.random() < 0.3) sfx.pop();
   state.soap = Math.min(100, state.soap + 1.5);
+  quest('scrub');
   S.apply(state, { hygiene: 0.35 });
   world.setDirt(dirtLevel());
   if (state.soap >= 100 && Math.random() < 0.05) say('¡Ahora a la ducha!', 1500);
@@ -486,7 +510,13 @@ function loop() {
       toast('¡Oh, no! Wapuu no llegó al baño a tiempo.');
       say('Uy… qué vergüenza.'); sfx.sad();
     }
-    if (state.mode === 'sleeping' && state.stats.energy >= 100) wake('¡Buenos días! Energía al 100 %.');
+    if (state.mode === 'sleeping' && state.stats.energy >= 100) { wake('¡Buenos días! Energía al 100 %.'); quest('sleep'); }
+    // misiones: cambio de día y minutos de buen humor
+    if (P.ensureDaily(state)) {
+      toast('🎯 ¡Nuevas misiones diarias!', 3000);
+      if (quests.open) renderQuests();
+    }
+    if (S.mood(state) === 'happy') quest('happy', dt / 60000, { quiet: true });
     if (state.mode === 'coding' && state.stats.energy < 4) stopCoding('No puedo más, necesito dormir.');
     world.setMood(S.mood(state));
     world.setDirt(dirtLevel());
@@ -548,6 +578,7 @@ function loop() {
 const shop = $('#shop');
 function openShop() {
   if (busy) return;
+  if (quests.open) quests.close();
   renderShop();
   shop.show();
   $('#shop-close').focus();
@@ -574,11 +605,12 @@ function renderShop() {
     const worn = state.equipped[it.slot] === it.id;
     const locked = !owned && it.level && state.level < it.level;
     const card = document.createElement('div');
-    card.className = 'item' + (worn ? ' worn' : '');
-    card.innerHTML = `<span class="emo" aria-hidden="true">${it.emo}</span><span class="iname">${it.name}</span>`;
+    card.className = 'item' + (worn ? ' worn' : '') + (it.pass ? ' pass-item' : '');
+    card.innerHTML = `<span class="emo" aria-hidden="true">${it.emo}</span><span class="iname">${it.name}</span>` + (it.pass ? '<span class="tag">Pase</span>' : '');
     const b = document.createElement('button');
     if (worn) { b.textContent = 'Quitar'; b.className = 'off'; }
     else if (owned) { b.textContent = 'Poner'; b.className = 'wear'; }
+    else if (it.pass) { b.textContent = `🏆 Nv. ${it.pass}`; b.disabled = true; b.title = `Recompensa del nivel ${it.pass} del pase de batalla`; }
     else if (locked) { b.textContent = `🔒 Nv. ${it.level}`; b.disabled = true; }
     else { b.textContent = `🪙 ${it.price}`; b.disabled = state.coins < it.price; }
     b.setAttribute('aria-label', `${b.textContent} ${it.name}`);
@@ -598,8 +630,10 @@ function shopAction(it) {
     state.equipped[it.slot] = it.id;
     sfx.happy(); world.squish(); burst('✨', 3);
   } else {
+    if (it.pass) { toast(`Se consigue en el nivel ${it.pass} del pase de batalla.`); return; }
     if (state.coins < it.price) { toast('Te faltan monedas. Programa en el despacho para ganar más.'); return; }
     state.coins -= it.price;
+    quest('spend', it.price);
     state.owned.push(it.id);
     state.equipped[it.slot] = it.id;
     coinFx(-it.price);
@@ -611,6 +645,203 @@ function shopAction(it) {
   persist();
   renderHud();
   renderShop();
+}
+
+// ---------------- misiones diarias y pase de batalla ----------------
+const quests = $('#quests');
+let questTab = 'daily';
+
+// Avisa a las misiones de que ha pasado algo (mimos, commits, duchas…).
+function quest(event, amount = 1, { quiet = false } = {}) {
+  const done = P.track(state, event, amount);
+  for (const q of done) {
+    const info = P.missionInfo(q, state.name);
+    toast(`✅ Misión completada: ${info.text}`, 2800);
+    sfx.happy();
+  }
+  if (done.length) renderHud();
+  if (quests.open && (done.length || !quiet)) renderQuests();
+}
+
+function passLevelUp(delay = 0) {
+  setTimeout(() => {
+    toast(`🏆 ¡Nivel ${state.pass.tier} del pase de batalla! Tienes una recompensa esperando.`, 3200);
+    sfx.level();
+    renderHud();
+    if (quests.open) renderQuests();
+  }, delay);
+}
+
+function openQuests(tab) {
+  if (busy) return;
+  if (shop.open) shop.close();
+  P.ensureDaily(state);
+  if (tab) questTab = tab;
+  else if (P.passPending(state) && !state.daily.list.some(q => !q.claimed && q.progress >= q.target)) questTab = 'pass';
+  renderQuests();
+  quests.show();
+  $('#quests-close').focus();
+}
+
+function fmtReset() {
+  const ms = P.msToReset();
+  const h = Math.floor(ms / 3600000), m = Math.floor(ms / 60000) % 60;
+  return h ? `${h} h ${m} min` : `${Math.max(1, m)} min`;
+}
+
+function renderQuests() {
+  $('#quests-coins').textContent = state.coins;
+  $('#quests-title').textContent = questTab === 'pass' ? 'Pase de batalla' : 'Misiones diarias';
+  document.querySelectorAll('#quests [data-tab]').forEach(t => t.setAttribute('aria-selected', t.dataset.tab === questTab ? 'true' : 'false'));
+  const body = $('#quests-body');
+  body.innerHTML = '';
+  if (questTab === 'pass') renderPass(body); else renderDaily(body);
+}
+
+function questRow({ emo, text, metaHtml, pct, cls, button }) {
+  const row = document.createElement('div');
+  row.className = 'quest ' + cls;
+  row.innerHTML = `<span class="emo" aria-hidden="true">${emo}</span>
+    <div><div class="qtext">${text}</div><div class="qmeta">${metaHtml}</div>
+    <span class="qbar"><span style="width:${pct}%"></span></span></div>`;
+  row.append(button);
+  return row;
+}
+
+function claimBtn(label, enabled, onClick) {
+  const b = document.createElement('button');
+  b.className = 'claim';
+  b.textContent = label;
+  b.disabled = !enabled;
+  if (enabled) b.addEventListener('click', () => { unlock(); onClick(); });
+  return b;
+}
+
+function renderDaily(body) {
+  state.daily.list.forEach((q, i) => {
+    const info = P.missionInfo(q, state.name);
+    const pct = Math.min(100, (q.progress / q.target) * 100);
+    const meta = `<span class="diff ${info.diff.id}">${info.diff.name}</span>
+      <span>${info.progress}/${info.target}</span><span>· +${info.diff.xp} XP · +${info.diff.coins} 🪙</span>`;
+    const label = info.claimed ? '✓' : info.done ? 'Reclamar' : `${Math.round(pct)} %`;
+    body.append(questRow({
+      emo: info.emo, text: info.text, metaHtml: meta, pct,
+      cls: info.claimed ? 'claimed' : info.done ? 'done' : '',
+      button: claimBtn(label, info.done && !info.claimed, () => {
+        const r = P.claimMission(state, i);
+        if (!r) return;
+        sfx.happy(); burst('🎯', 3);
+        gain(r);
+        toast(`+${r.xp} XP y +${r.coins} 🪙`);
+        persist(); renderQuests();
+      }),
+    }));
+  });
+  // premio por completar las tres
+  const claimedN = state.daily.list.filter(q => q.claimed).length;
+  const all = P.allMissionsDone(state);
+  const b = P.DAILY_BONUS;
+  body.append(questRow({
+    emo: '🎁', text: 'Completa las 3 misiones del día',
+    metaHtml: `<span>${claimedN}/3 reclamadas</span><span>· +${b.xp} XP · +${b.coins} 🪙</span>`,
+    pct: (claimedN / 3) * 100,
+    cls: state.daily.bonus ? 'claimed' : all ? 'done' : '',
+    button: claimBtn(state.daily.bonus ? '✓' : 'Reclamar', all && !state.daily.bonus, () => {
+      const r = P.claimBonus(state);
+      if (!r) return;
+      sfx.level(); burst('🎉', 6);
+      say('¡Día completado!', 1800);
+      gain(r);
+      toast(`¡Bonus diario! +${r.xp} XP y +${r.coins} 🪙`, 3000);
+      persist(); renderQuests();
+    }),
+  }));
+  const foot = document.createElement('p');
+  foot.className = 'quest-foot';
+  foot.textContent = `Nuevas misiones en ${fmtReset()}. La experiencia también sube el pase de batalla.`;
+  body.append(foot);
+}
+
+function tierReward(t) {
+  const r = P.rewardFor(t);
+  if (r.type === 'cosmetic') {
+    const c = cosmetic(r.id);
+    return { ...r, emo: c.emo, label: c.name, special: true };
+  }
+  return { ...r, special: r.type !== 'coins' };
+}
+
+function renderPass(body) {
+  const p = state.pass;
+  const need = P.passNeed(p.tier + 1);
+  const pending = P.passPending(state);
+  const head = document.createElement('div');
+  head.className = 'pass-head';
+  head.innerHTML = `<div class="pass-lvl"><div><small>Nivel</small><strong>${p.tier}</strong></div></div>
+    <div class="pass-prog">${Math.floor(p.xp)} / ${need} XP para el nivel ${p.tier + 1}
+      <span class="qbar"><span style="width:${Math.min(100, p.xp / need * 100)}%"></span></span></div>`;
+  head.append(claimBtn(pending ? `Reclamar (${pending})` : 'Al día ✓', pending > 0, () => claimPassUpTo(Infinity)));
+  body.append(head);
+
+  // El pase no acaba nunca: se pintan unos cuantos niveles alrededor del progreso actual.
+  const track = document.createElement('div');
+  track.className = 'pass-track';
+  const from = Math.max(1, p.claimed - 1);
+  const to = Math.max(p.tier, p.claimed) + 14;
+  let focus = null;
+  for (let t = from; t <= to; t++) {
+    const r = tierReward(t);
+    const got = t <= p.claimed;
+    const ready = !got && t <= p.tier;
+    const card = document.createElement('div');
+    card.className = 'tier' + (got ? ' got' : ready ? ' ready' : ' locked') + (r.special ? ' special' : '');
+    card.innerHTML = `<span class="tnum">Nv. ${t}</span><span class="emo" aria-hidden="true">${r.emo}</span><span class="tname">${r.label}</span>`;
+    if (got) card.append(claimBtn('✓', false));
+    else if (ready) card.append(claimBtn('Reclamar', true, () => claimPassUpTo(t)));
+    else card.append(claimBtn(`🔒 ${P.passNeed(t)} XP`, false));
+    if (!focus && !got) focus = card;
+    track.append(card);
+  }
+  body.append(track);
+  if (focus) requestAnimationFrame(() => { track.scrollLeft = Math.max(0, focus.offsetLeft - track.offsetLeft - 8); });
+
+  const note = document.createElement('p');
+  note.className = 'pass-note';
+  note.textContent = 'El pase no tiene final: cada nivel pide un poco más de experiencia que el anterior. Hay cosméticos exclusivos en los niveles 5, 10, 20, 30 y 50.';
+  body.append(note);
+}
+
+function claimPassUpTo(t) {
+  const got = P.claimPass(state, t);
+  if (!got.length) return;
+  let coins = 0;
+  const news = [];
+  for (const r of got) {
+    if (r.coins) coins += r.coins;
+    if (r.type === 'snack') S.apply(state, { food: 25, energy: 20, fun: 25, hygiene: 10 });
+    if (r.type === 'cosmetic' && !state.owned.includes(r.id)) {
+      state.owned.push(r.id);
+      news.push(cosmetic(r.id));
+    }
+  }
+  if (coins) gain({ coins });
+  sfx.level(); burst('🏆', 4);
+  if (news.length) {
+    const c = news[news.length - 1];
+    state.equipped[c.slot] = c.id;
+    world.setCosmetics(state.equipped);
+    world.squish();
+    say(`¡Mira: ${c.name.toLowerCase()} del pase!`, 2200);
+    toast(`Nuevo cosmético: ${news.map(n => n.emo + ' ' + n.name).join(', ')}. Lo tienes en la tienda.`, 3600);
+  } else if (got.some(r => r.type === 'snack')) {
+    say('¡Merienda de campeón!', 1800);
+    toast(`¡Recompensa! +${coins} 🪙 y una merienda que sube todas sus necesidades.`, 3000);
+  } else {
+    toast(`¡Recompensa${got.length > 1 ? 's' : ''} del pase! +${coins} 🪙`, 2600);
+  }
+  persist();
+  renderHud();
+  renderQuests();
 }
 
 // ---------------- menú ----------------
@@ -636,7 +867,14 @@ function setupMenu() {
   $('#menu-btn').addEventListener('click', open);
   $('#shop-btn').addEventListener('click', () => { unlock(); sfx.tap(); openShop(); });
   $('#shop-close').addEventListener('click', () => shop.close());
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && shop.open) shop.close(); });
+  $('#quests-btn').addEventListener('click', () => { unlock(); sfx.tap(); quests.open ? quests.close() : openQuests(); });
+  $('#quests-close').addEventListener('click', () => quests.close());
+  document.querySelectorAll('#quests [data-tab]').forEach(t => t.addEventListener('click', () => { sfx.tap(); questTab = t.dataset.tab; renderQuests(); }));
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (shop.open) shop.close();
+    if (quests.open) quests.close();
+  });
   $('#pet-name').addEventListener('click', open);
   $('#reset-btn').addEventListener('click', (e) => {
     if (!confirm('¿Seguro? Se borrará todo el progreso de tu Wapuu.')) { e.preventDefault(); return; }
@@ -781,6 +1019,7 @@ function startCloudPolling() {
     const cloud = await Auth.loadCloudSave(currentUid);
     if (!cloud || cloud.updatedAtMs <= lastCloudMs) return;
     state = { ...state, ...cloud.state };
+    P.ensureProgress(state);
     lastCloudMs = cloud.updatedAtMs;
     S.save(state);
     world.name = state.name;
@@ -830,6 +1069,7 @@ async function start() {
   if (!(await worldP)) return;
 
   const away = S.catchUp(state);
+  P.ensureProgress(state);
   world.name = state.name;
   world.commits = state.commits;
   world.onCommit = onCommit;
