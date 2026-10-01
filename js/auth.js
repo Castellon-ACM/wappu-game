@@ -22,7 +22,16 @@ function init() {
       ]);
       authMod = a; fsMod = f;
       const app = initializeApp(firebaseConfig);
-      auth = authMod.getAuth(app);
+      // Persistencia explícita en el almacenamiento del navegador: la sesión sobrevive
+      // a cerrar la pestaña o el navegador (getAuth la elige solo y en algunos
+      // navegadores se quedaba en memoria).
+      try {
+        auth = authMod.initializeAuth(app, {
+          persistence: [authMod.indexedDBLocalPersistence, authMod.browserLocalPersistence, authMod.browserSessionPersistence],
+        });
+      } catch (e) {
+        auth = authMod.getAuth(app);
+      }
       auth.languageCode = 'es';
       db = fsMod.getFirestore(app);
       enabled = true;
@@ -53,13 +62,51 @@ function friendlyError(e) {
   return ERRORS[e?.code] || 'Ha ocurrido un error. Inténtalo de nuevo.';
 }
 
+// ---- Duración de la sesión ----
+// "Mantener la sesión iniciada" guarda la sesión 30 días desde la última vez que se abre el juego.
+// Sin marcarla, la sesión termina al cerrar la pestaña.
+const SESSION_DAYS = 30;
+const SESSION_KEY = 'wapuu-session';
+
+function readSession() {
+  try { return JSON.parse(localStorage.getItem(SESSION_KEY)); } catch (e) { return null; }
+}
+function touchSession(uid) {
+  try { localStorage.setItem(SESSION_KEY, JSON.stringify({ uid, until: Date.now() + SESSION_DAYS * 86400000 })); } catch (e) {}
+}
+function clearSession() {
+  try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
+}
+function wantsRemember() {
+  const box = document.getElementById('auth-remember');
+  return box ? box.checked : true;
+}
+async function applyRemember() {
+  const remember = wantsRemember();
+  await authMod.setPersistence(auth, remember ? authMod.indexedDBLocalPersistence : authMod.browserSessionPersistence);
+  return remember;
+}
+
 // Vuelve al juego tras pulsar el enlace del correo de recuperación.
 const CONTINUE_URL = location.origin + location.pathname;
 
 export async function onAuthChange(cb) {
   const ok = await init();
   if (!ok) { cb(null); return () => {}; }
-  return authMod.onAuthStateChanged(auth, cb);
+  return authMod.onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      const sess = readSession();
+      if (sess && sess.uid === user.uid && sess.until < Date.now()) {
+        // han pasado más de 30 días sin abrir el juego: se pide entrar otra vez
+        clearSession();
+        await authMod.signOut(auth);
+        return;   // onAuthStateChanged volverá a llamar con null
+      }
+      // sesión recordada: se renueva el plazo cada vez que se abre el juego
+      if (!sess || sess.uid === user.uid) touchSession(user.uid);
+    }
+    cb(user);
+  });
 }
 
 export function currentUser() {
@@ -71,8 +118,11 @@ const NOT_READY = { error: 'No se pudo conectar con el servicio de cuentas. Pued
 export async function signUp(email, password) {
   if (!(await init())) return NOT_READY;
   try {
+    if (await applyRemember()) touchSession(null); else clearSession();
     const cred = await authMod.createUserWithEmailAndPassword(auth, email, password);
-    await authMod.sendEmailVerification(cred.user, { url: CONTINUE_URL });
+    if (wantsRemember()) touchSession(cred.user.uid);
+    // la cuenta ya está creada: si el correo de verificación falla, no se trata como error
+    sendVerification(cred.user).catch((e) => console.warn('No se pudo enviar la verificación', e));
     return { user: cred.user };
   } catch (e) { return { error: friendlyError(e) }; }
 }
@@ -80,13 +130,16 @@ export async function signUp(email, password) {
 export async function signIn(email, password) {
   if (!(await init())) return NOT_READY;
   try {
+    if (await applyRemember()) touchSession(null); else clearSession();
     const cred = await authMod.signInWithEmailAndPassword(auth, email, password);
+    if (wantsRemember()) touchSession(cred.user.uid);
     return { user: cred.user };
   } catch (e) { return { error: friendlyError(e) }; }
 }
 
 export async function signOutUser() {
   if (!enabled) return;
+  clearSession();
   await authMod.signOut(auth);
 }
 
@@ -98,10 +151,19 @@ export async function resetPassword(email) {
   } catch (e) { return { error: friendlyError(e) }; }
 }
 
+// Con enlace de vuelta al juego; si Firebase no acepta esa dirección, se envía sin él.
+async function sendVerification(user) {
+  try { await authMod.sendEmailVerification(user, { url: CONTINUE_URL }); }
+  catch (e) {
+    if (e?.code === 'auth/unauthorized-continue-uri' || e?.code === 'auth/invalid-continue-uri') await authMod.sendEmailVerification(user);
+    else throw e;
+  }
+}
+
 export async function resendVerification() {
   if (!auth?.currentUser) return { error: 'No hay sesión iniciada.' };
   try {
-    await authMod.sendEmailVerification(auth.currentUser, { url: CONTINUE_URL });
+    await sendVerification(auth.currentUser);
     return { ok: true };
   } catch (e) { return { error: friendlyError(e) }; }
 }
