@@ -7,6 +7,7 @@ import { MISSIONS } from './progress.js';
 import lasso from './mg-lasso.js';
 import rhythm from './mg-rhythm.js';
 import plugins from './mg-plugins.js';
+import { initRanking, openRanking, closeRanking, positionFor } from './ranking.js';
 
 export const GAMES = [lasso, rhythm, plugins];
 const MEDALS = ['🥉', '🥈', '🥇'];
@@ -41,10 +42,12 @@ function buildSheet() {
       <div class="coins"><span aria-hidden="true">🪙</span> <strong id="games-coins">0</strong></div>
       <button id="games-close" class="icon-btn" aria-label="Cerrar minijuegos">✕</button>
     </div>
+    <button type="button" class="rk-open" id="games-ranking">🏆 Ranking mundial <small>nivel y récords de todos</small></button>
     <div id="games-list"></div>
     <p class="games-note">Cada partida cuesta ⚡${ENERGY_COST} de energía y sube el ánimo. Las monedas y la experiencia dependen de tu puntuación.</p>`;
   document.body.append(sheet);
   sheet.querySelector('#games-close').addEventListener('click', () => sheet.close());
+  sheet.querySelector('#games-ranking').addEventListener('click', () => { hooks.sfx.tap(); sheet.close(); openRanking('level'); });
 }
 
 function renderSheet() {
@@ -70,12 +73,13 @@ function renderSheet() {
 }
 
 export function openGames() {
+  closeRanking();
   renderSheet();
   sheet.style.bottom = `${document.getElementById('rooms').getBoundingClientRect().height}px`;
   sheet.show();
 }
 export const gamesOpen = () => !!sheet?.open || !!current;
-export function closeGames() { if (sheet?.open) sheet.close(); }
+export function closeGames() { if (sheet?.open) sheet.close(); closeRanking(); }
 
 // ---------------- pantalla de juego ----------------
 function buildOverlay() {
@@ -282,10 +286,17 @@ function finish(quitEarly) {
     <p class="mg-final">${score} puntos</p>
     <p>Récord: <b>${st.best}</b>${next ? ` · Siguiente medalla ${MEDALS[st.medals]} a los ${next}` : ' · ¡Todas las medallas!'}</p>
     ${gotMedals.length ? `<p class="mg-medal">${gotMedals.join(' ')} ¡Medalla nueva! +${bonus} 🪙</p>` : ''}
-    <p class="mg-reward">+${coins} 🪙 · +${xp} XP</p>`, [
+    <p class="mg-reward">+${coins} 🪙 · +${xp} XP</p>
+    <p class="mg-rank" id="mg-rank"></p>`, [
     ['Otra vez', () => { quit(true); start(game); }, 'primary'],
+    ['🏆', () => { quit(true); openRanking(game.id); }],
     ['Salir', () => quit()],
   ]);
+  // puesto mundial de esta puntuación (solo con cuenta)
+  positionFor(game.id, score).then((pos) => {
+    const el = document.getElementById('mg-rank');
+    if (el && pos) el.textContent = `🌍 Puesto #${pos} en el mundo`;
+  });
   if (record && score > 0) hooks.sfx.level(); else hooks.sfx.coin();
 }
 
@@ -300,6 +311,7 @@ function quit(silent) {
 
 export function initMinigames(h) {
   hooks = h;
+  initRanking({ getState: h.getState, sfx: h.sfx });
   buildSheet();
   buildOverlay();
 }
