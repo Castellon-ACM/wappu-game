@@ -6,9 +6,9 @@
 // Archivos que se vigilan. Si se añade un módulo nuevo, basta con que cambie main.js para detectarlo.
 const FILES = [
   'index.html', 'sw.js',
-  'css/style.css', 'css/progress.css', 'css/wardrobe.css',
+  'css/style.css', 'css/progress.css', 'css/wardrobe.css', 'css/kitchen.css',
   'js/main.js', 'js/world.js', 'js/state.js', 'js/audio.js', 'js/auth.js',
-  'js/progress.js', 'js/pass-cosmetics.js', 'js/wardrobe.js', 'js/updates.js',
+  'js/progress.js', 'js/pass-cosmetics.js', 'js/wardrobe.js', 'js/kitchen.js', 'js/updates.js',
 ];
 const SKIP_KEY = 'wapuu-update-reload';
 const CHECK_EVERY_MS = 5 * 60 * 1000;

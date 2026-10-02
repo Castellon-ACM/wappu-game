@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="css/style.css?v=2">
   <link rel="stylesheet" href="css/progress.css?v=2">
   <link rel="stylesheet" href="css/wardrobe.css?v=3">
+  <link rel="stylesheet" href="css/kitchen.css?v=4">
   <script type="importmap">
   {
     "imports": {
@@ -117,6 +118,21 @@
     <div id="shop-grid"></div>
   </dialog>
 
+  <dialog id="fridge" aria-labelledby="fridge-title">
+    <div class="shop-head">
+      <h2 id="fridge-title">Nevera</h2>
+      <div class="coins"><span aria-hidden="true">🪙</span> <strong id="fridge-coins">0</strong></div>
+      <button id="fridge-close" class="icon-btn" aria-label="Cerrar la nevera">✕</button>
+    </div>
+    <div class="shop-tabs scroll" role="tablist">
+      <button type="button" data-cat="fruit" role="tab" aria-selected="true">🍎 Fruta</button>
+      <button type="button" data-cat="meals" role="tab" aria-selected="false">🍽️ Comidas</button>
+      <button type="button" data-cat="sweets" role="tab" aria-selected="false">🍰 Dulces</button>
+      <button type="button" data-cat="drinks" role="tab" aria-selected="false">🥤 Bebidas</button>
+    </div>
+    <div id="fridge-grid" class="food-grid" role="tabpanel"></div>
+  </dialog>
+
   <dialog id="quests" aria-labelledby="quests-title">
     <div class="shop-head">
       <h2 id="quests-title">Misiones</h2>
@@ -173,6 +189,6 @@
   </div>
 
   <script type="module" src="js/updates.js"></script>
-  <script type="module" src="js/main.js?v=3"></script>
+  <script type="module" src="js/main.js?v=4"></script>
 </body>
 </html>
