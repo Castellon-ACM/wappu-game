@@ -1,0 +1,78 @@
+/* Minijuegos: sala (hoja inferior) y pantalla de juego a pantalla completa. */
+
+/* ---------- sala ---------- */
+#games {
+  position: fixed; left: 0; right: 0; bottom: 0; top: auto; z-index: 9;
+  margin: 0 auto; width: 100%; max-width: 640px;
+  box-shadow: 0 -6px 0 rgba(30,30,30,.12);
+  border-radius: 22px 22px 0 0; border-bottom: 0; padding: 10px 14px 10px;
+}
+#games-list { display: grid; gap: 8px; max-height: min(52vh, 440px); overflow-y: auto; padding: 2px; }
+.game-card {
+  display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center;
+  border: 3px solid var(--ink); border-radius: 18px; padding: 8px 10px; box-shadow: var(--shadow);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--gc) 35%, white), var(--paper) 70%);
+}
+.game-card .gemo { font-size: 2.3rem; line-height: 1; filter: drop-shadow(0 2px 0 rgba(30,30,30,.25)); }
+.game-card .ginfo { display: grid; gap: 1px; }
+.game-card .ginfo strong { font-size: 1rem; }
+.game-card .ginfo > span { font-size: .78rem; line-height: 1.2; }
+.game-card .gmeta { font-size: .74rem; font-weight: 700; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.game-card .gmedals span { filter: grayscale(1); opacity: .3; }
+.game-card .gmedals span.got { filter: none; opacity: 1; }
+.game-card .gplay { font-size: .95rem; padding: 8px 14px; }
+.games-note { font-size: .74rem; opacity: .75; text-align: center; margin: 6px 0 0; }
+#games-btn { color: #FFE38A !important; }
+
+/* ---------- pantalla de juego ---------- */
+#mg {
+  position: fixed; inset: 0; z-index: 40; background: #12142A; color: var(--paper);
+  display: grid; grid-template-rows: auto auto 1fr; touch-action: none; user-select: none; -webkit-user-select: none;
+}
+#mg[hidden] { display: none; }
+body.mg-on { overflow: hidden; }
+.mg-top {
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px;
+  padding: calc(8px + env(safe-area-inset-top, 0px)) 12px 6px;
+  background: color-mix(in srgb, var(--gc) 30%, #12142A);
+  border-bottom: 3px solid var(--ink);
+}
+.mg-top .icon-btn { width: 38px; height: 38px; }
+.mg-title { font-weight: 900; font-size: 1.05rem; text-align: center; }
+.mg-score { display: grid; justify-items: end; line-height: 1; }
+.mg-score small { font-size: .62rem; opacity: .75; font-weight: 700; }
+.mg-score strong { font-size: 1.45rem; font-weight: 900; color: var(--wapuu); }
+.mg-extra { text-align: center; font-size: .9rem; font-weight: 700; padding: 4px 8px; min-height: 1.6em; background: rgba(0,0,0,.25); }
+#mg-canvas { width: 100%; height: 100%; display: block; touch-action: none; }
+.mg-card {
+  position: absolute; inset: 0; display: grid; place-items: center; padding: 20px;
+  background: rgba(10,12,30,.55); backdrop-filter: blur(3px);
+}
+.mg-card[hidden] { display: none; }
+.mg-card-in {
+  width: min(360px, 100%); background: var(--paper); color: var(--ink); text-align: center;
+  border: 3px solid var(--ink); border-radius: 24px; padding: 18px 18px 16px; box-shadow: 0 6px 0 rgba(30,30,30,.35);
+  animation: mgpop .25s ease-out;
+}
+@keyframes mgpop { from { transform: scale(.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.mg-card-in h3 { margin: 4px 0 6px; font-size: 1.35rem; }
+.mg-card-in p { margin: 6px 0; font-size: .92rem; line-height: 1.35; }
+.mg-big { font-size: 3.4rem; line-height: 1; }
+.mg-final { font-size: 2rem !important; font-weight: 900; color: var(--blueberry); margin: 2px 0 !important; }
+.mg-medal { font-weight: 900; color: #B8860B; }
+.mg-reward { font-weight: 900; background: var(--wapuu); border: 2px solid var(--ink); border-radius: 999px; display: inline-block; padding: 2px 12px; }
+.mg-btns { display: flex; gap: 10px; justify-content: center; margin-top: 12px; }
+.mg-btn {
+  border: 3px solid var(--ink); border-radius: 999px; padding: 9px 18px; font: inherit; font-weight: 900;
+  background: var(--paper); box-shadow: var(--shadow); color: var(--ink);
+}
+.mg-btn.primary { background: var(--wapuu); }
+.mg-btn:active { transform: translateY(2px); box-shadow: none; }
+
+/* la barra de habitaciones con 6 botones en móviles estrechos */
+@media (max-width: 420px) {
+  #rooms { gap: 2px; padding-left: 4px; padding-right: 4px; }
+  #rooms button { font-size: .7rem; }
+  #rooms button span { font-size: 1.35rem; }
+}
+.mg-top .icon-btn { color: var(--ink); }
