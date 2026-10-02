@@ -76,3 +76,38 @@ body.mg-on { overflow: hidden; }
   #rooms button span { font-size: 1.35rem; }
 }
 .mg-top .icon-btn { color: var(--ink); }
+
+/* ---------- ranking mundial ---------- */
+#ranking {
+  position: fixed; left: 0; right: 0; bottom: 0; top: auto; z-index: 9;
+  margin: 0 auto; width: 100%; max-width: 640px;
+  box-shadow: 0 -6px 0 rgba(30,30,30,.12);
+  border-radius: 22px 22px 0 0; border-bottom: 0; padding: 10px 14px 10px;
+}
+.rk-open {
+  width: 100%; display: flex; gap: 8px; align-items: baseline; justify-content: center; margin: 0 0 8px;
+  border: 3px solid var(--ink); border-radius: 16px; padding: 8px 12px; font: inherit; font-weight: 900;
+  background: linear-gradient(90deg, #FFE38A, #FFF6D6); box-shadow: var(--shadow); color: var(--ink);
+}
+.rk-open small { font-weight: 700; font-size: .72rem; opacity: .7; }
+.rk-sub { font-size: .78rem; text-align: center; margin: 4px 0 6px; opacity: .75; }
+.rk-list { list-style: none; margin: 0; padding: 2px; display: grid; gap: 5px; max-height: min(40vh, 340px); overflow-y: auto; }
+.rk-row {
+  display: grid; grid-template-columns: 2.6em 1.8em 1fr auto; align-items: center; gap: 6px;
+  border: 2px solid var(--ink); border-radius: 12px; padding: 5px 10px; background: var(--paper);
+}
+.rk-row.top1 { background: #FFF1B8; } .rk-row.top2 { background: #EEF1F6; } .rk-row.top3 { background: #FBE3CF; }
+.rk-row.mine { border-color: var(--blueberry); box-shadow: 0 0 0 3px #C9D3FF; }
+.rk-pos { font-weight: 900; font-size: .95rem; text-align: center; }
+.rk-emo { font-size: 1.3rem; text-align: center; }
+.rk-name { font-weight: 700; font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rk-name small { font-weight: 700; opacity: .6; font-size: .72rem; }
+.rk-name .rk-lvl { margin-left: 6px; }
+.rk-val { font-weight: 900; font-variant-numeric: tabular-nums; }
+.rk-msg { text-align: center; font-size: .85rem; padding: 16px 8px; opacity: .8; }
+.rk-me { margin-top: 8px; text-align: center; font-size: .85rem; }
+.rk-me p { margin: 4px 0 8px; }
+.rk-me .rk-list { max-height: none; }
+.mg-rank { font-weight: 900; color: var(--blueberry); min-height: 1.2em; }
+.mg-btns .mg-btn { padding: 9px 14px; }
+.rk-me .rk-row { text-align: left; }

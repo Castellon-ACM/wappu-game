@@ -9,7 +9,7 @@ const FILES = [
   'css/style.css', 'css/progress.css', 'css/wardrobe.css', 'css/kitchen.css', 'css/minigames.css',
   'js/main.js', 'js/world.js', 'js/state.js', 'js/audio.js', 'js/auth.js',
   'js/progress.js', 'js/pass-cosmetics.js', 'js/wardrobe.js', 'js/kitchen.js',
-  'js/minigames.js', 'js/mg-lasso.js', 'js/mg-rhythm.js', 'js/mg-plugins.js', 'js/updates.js',
+  'js/minigames.js', 'js/ranking.js', 'js/mg-lasso.js', 'js/mg-rhythm.js', 'js/mg-plugins.js', 'js/updates.js',
 ];
 const SKIP_KEY = 'wapuu-update-reload';
 const CHECK_EVERY_MS = 5 * 60 * 1000;

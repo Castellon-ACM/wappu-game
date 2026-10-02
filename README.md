@@ -30,6 +30,10 @@ Programar cansa y da hambre, así que hay que equilibrar trabajo y descanso.
 
 **Pase de batalla infinito.** Toda la experiencia que ganas (jugando y con las misiones) sube también el pase. No tiene final: los primeros niveles salen enseguida y cada uno pide un poco más que el anterior (40 XP el primero, unos 390 el 10, unos 960 el 20…). Cada nivel da monedas; cada 5, una merienda que sube todas sus necesidades; cada 10, un cofre de monedas. En los niveles 5, 10, 20, 30 y 50 hay cosméticos exclusivos que no se venden en la tienda: estrella, monóculo, aureola, gorro de mago y gafas de oro.
 
+**Minijuegos** (🎮 Juegos, en la barra de abajo): Lazo de pompas, Ritmo de commits y Enchufa plugins, con récords, medallas y premios.
+
+**Ranking mundial** (🏆 dentro de Juegos): el top 50 de Wapuus por nivel y de récords en cada minijuego, y tu puesto aunque no estés entre ellos. Para salir hace falta cuenta; sin cuenta se puede ver. Solo se publica el nombre del Wapuu, un emoji, el nivel y los récords (nada de correos).
+
 ## Tecnología
 
 - HTML, CSS y JavaScript sin compilación.
@@ -59,7 +63,7 @@ Este repositorio ya incluye `js/firebase-config.js` con las claves del proyecto 
 1. Crea un proyecto.
 2. En **Authentication → Sign-in method**, activa el proveedor de correo y contraseña.
 3. En **Authentication → Settings → Authorized domains**, añade el dominio donde publiques el juego (por ejemplo `castellon-acm.github.io`).
-4. Crea la base de datos de **Firestore** y pega en **Reglas** el contenido de [`firestore.rules`](firestore.rules).
+4. Crea la base de datos de **Firestore** y pega en **Reglas** el contenido de [`firestore.rules`](firestore.rules). Cada vez que cambie ese archivo (por ejemplo, al añadir el ranking) hay que volver a pegarlo y pulsar **Publicar**.
 5. Registra una app web (icono `</>`) y copia sus claves (`apiKey`, `authDomain`, `projectId`, `appId`) en un archivo nuevo `js/firebase-config.js`:
 
 ```js
