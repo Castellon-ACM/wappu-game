@@ -5,6 +5,7 @@ import * as Auth from './auth.js';
 import * as P from './progress.js';
 import { cosmetic } from './pass-cosmetics.js';
 import './wardrobe.js';
+import './kitchen.js';
 
 const $ = (sel) => document.querySelector(sel);
 const fx = $('#fx');
@@ -153,7 +154,8 @@ function renderHud() {
     li.classList.toggle('low', v <= 25);
     li.title = `${li.querySelector('small').textContent}: ${Math.round(v)}%`;
   }
-  document.querySelectorAll('.act[data-price]').forEach(b => { b.disabled = state.coins < +b.dataset.price; });
+  document.querySelectorAll('[data-price]').forEach(b => { b.disabled = state.coins < +b.dataset.price; });
+  if (fridge.open) $('#fridge-coins').textContent = state.coins;
   const n = P.claimableCount(state);
   const badge = $('#quests-badge');
   badge.hidden = n === 0;
@@ -184,12 +186,10 @@ function renderActions() {
       btn({ emo: '🤗', label: 'Mimos', onClick: () => pet(true) }),
       btn({ emo: '⚽', label: 'Pelota', onClick: playBall }),
       btn({ emo: '💃', label: 'Bailar', onClick: dance }),
-      btn({ emo: '🛍️', label: 'Tienda', onClick: openShop }),
-      btn({ emo: '🎯', label: 'Misiones', onClick: () => openQuests() }),
     );
   }
   if (r === 'cocina') {
-    for (const f of S.FOODS) box.append(btn({ emo: f.emo, label: f.name, price: f.price, onClick: () => eat(f) }));
+    box.append(btn({ emo: '🧊', label: 'Nevera', on: fridge.open, onClick: () => (fridge.open ? fridge.close() : openFridge()) }));
   }
   if (r === 'despacho') {
     const coding = state.mode === 'coding';
@@ -264,8 +264,8 @@ function dance() {
   });
 }
 
-function eat(food) {
-  if (state.stats.food > 96) { say('Estoy lleno, gracias.'); return; }
+function eat(food, fromEl) {
+  if (state.stats.food > 96 && food.cat !== 'drinks') { say('Estoy lleno, gracias.'); return; }
   if (state.coins < food.price) { toast('Te faltan monedas. Programa en el despacho para ganar más.'); sfx.sad(); return; }
   run(async () => {
     state.coins -= food.price;
@@ -274,8 +274,9 @@ function eat(food) {
     // la comida vuela hasta la boca
     const el = document.createElement('div');
     el.className = 'fly'; el.textContent = food.emo;
-    el.style.left = innerWidth / 2 + 'px';
-    el.style.top = innerHeight - 170 + 'px';
+    const from = fromEl?.getBoundingClientRect();
+    el.style.left = (from ? from.left + from.width / 2 : innerWidth / 2) + 'px';
+    el.style.top = (from ? from.top + from.height / 3 : innerHeight - 170) + 'px';
     fx.appendChild(el);
     const m = world.mouthPos();
     requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -446,7 +447,9 @@ function enterRoom(id) {
   world.setRoom(id);
   $('#room-name').textContent = ROOM_NAMES[id];
   document.querySelectorAll('#rooms button').forEach(b => b.setAttribute('aria-current', b.dataset.room === id ? 'page' : 'false'));
+  if (id !== 'cocina' && fridge.open) fridge.close();
   renderActions();
+  if (id === 'cocina' && world.pet && !fridge.open) openFridge();
 }
 
 // ---------------- entrada sobre el canvas ----------------
@@ -580,6 +583,7 @@ const shop = $('#shop');
 function openShop() {
   if (busy) return;
   if (quests.open) quests.close();
+  if (fridge.open) fridge.close();
   preview = null;
   renderShop();
   shop.show();
@@ -674,6 +678,43 @@ function shopAction(it) {
   renderShop();
 }
 
+// ---------------- nevera ----------------
+const fridge = $('#fridge');
+let fridgeCat = 'fruit';
+const EFFECT_ICONS = { food: '🍕', energy: '⚡', fun: '🎈', hygiene: '🫧', bladder: '🚽' };
+function openFridge() {
+  if (shop.open) shop.close();
+  if (quests.open) quests.close();
+  renderFridge();
+  // justo encima de la barra de habitaciones, para poder salir de la cocina con la nevera abierta
+  fridge.style.bottom = `${$('#rooms').getBoundingClientRect().height}px`;
+  fridge.show();
+  // que la boca de Wapuu quede por encima de la nevera
+  const top = fridge.getBoundingClientRect().top;
+  const mouth = world.mouthPos().y + world.liftNow();
+  world.liftView(Math.min(innerHeight * 0.4, mouth - (top - 90)));
+  if (state.room === 'cocina') renderActions();
+}
+function renderFridge() {
+  $('#fridge-coins').textContent = state.coins;
+  document.querySelectorAll('#fridge [data-cat]').forEach(t => t.setAttribute('aria-selected', t.dataset.cat === fridgeCat ? 'true' : 'false'));
+  const grid = $('#fridge-grid');
+  grid.innerHTML = '';
+  for (const food of S.FOODS.filter(x => x.cat === fridgeCat)) {
+    const b = document.createElement('button');
+    b.className = 'food-card';
+    b.dataset.price = food.price;
+    b.disabled = state.coins < food.price;
+    const fx2 = Object.entries(food.effects).filter(([k, v]) => k !== 'bladder' && v > 0).map(([k, v]) => `${EFFECT_ICONS[k]}+${v}`).join(' ');
+    b.innerHTML = `<span class="emo" aria-hidden="true">${food.emo}</span><span class="fname">${food.name}</span>`
+      + `<span class="ffx" aria-hidden="true">${fx2}${(food.effects.bladder || 0) < 0 ? ' 🚽!' : ''}</span><span class="price">🪙 ${food.price}</span>`;
+    b.setAttribute('aria-label', `${food.name}, ${food.price} monedas`);
+    b.addEventListener('click', () => { unlock(); sfx.tap(); eat(food, b); });
+    grid.append(b);
+  }
+  grid.scrollTop = 0;
+}
+
 // ---------------- misiones diarias y pase de batalla ----------------
 const quests = $('#quests');
 let questTab = 'daily';
@@ -702,6 +743,7 @@ function passLevelUp(delay = 0) {
 function openQuests(tab) {
   if (busy) return;
   if (shop.open) shop.close();
+  if (fridge.open) fridge.close();
   P.ensureDaily(state);
   if (tab) questTab = tab;
   else if (P.passPending(state) && !state.daily.list.some(q => !q.claimed && q.progress >= q.target)) questTab = 'pass';
@@ -898,6 +940,9 @@ function setupMenu() {
     world.showBack(false);
     if (preview) { preview = null; world.setCosmetics(state.equipped); }
   });
+  $('#fridge-close').addEventListener('click', () => fridge.close());
+  fridge.addEventListener('close', () => { world.liftView(0); if (state.room === 'cocina') renderActions(); });
+  document.querySelectorAll('#fridge [data-cat]').forEach(t => t.addEventListener('click', () => { sfx.tap(); fridgeCat = t.dataset.cat; renderFridge(); }));
   $('#quests-btn').addEventListener('click', () => { unlock(); sfx.tap(); quests.open ? quests.close() : openQuests(); });
   $('#quests-close').addEventListener('click', () => quests.close());
   document.querySelectorAll('#quests [data-tab]').forEach(t => t.addEventListener('click', () => { sfx.tap(); questTab = t.dataset.tab; renderQuests(); }));
@@ -905,6 +950,7 @@ function setupMenu() {
     if (e.key !== 'Escape') return;
     if (shop.open) shop.close();
     if (quests.open) quests.close();
+    if (fridge.open) fridge.close();
   });
   $('#pet-name').addEventListener('click', open);
   $('#reset-btn').addEventListener('click', (e) => {
@@ -1124,7 +1170,7 @@ async function start() {
     const h = Math.floor(away.minutes / 60), m = away.minutes % 60;
     toast(`Has estado fuera ${h ? h + ' h ' : ''}${m} min. ${state.name} te echaba de menos.`, 3500);
   } else if (isNew) {
-    setTimeout(() => say(`¡Hola! Soy ${state.name}. Cuídame.`, 3200), 600);
+    setTimeout(() => say(`¡Hola! Soy ${state.name}. Cuida de mí.`, 3200), 600);
   }
   S.save(state);
   startCloudPolling();
