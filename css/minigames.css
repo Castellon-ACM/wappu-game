@@ -85,11 +85,11 @@ body.mg-on { overflow: hidden; }
   border-radius: 22px 22px 0 0; border-bottom: 0; padding: 10px 14px 10px;
 }
 .rk-open {
-  width: 100%; display: flex; gap: 8px; align-items: baseline; justify-content: center; margin: 0 0 8px;
+  width: 100%; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; justify-content: center; margin: 0 0 8px;
   border: 3px solid var(--ink); border-radius: 16px; padding: 8px 12px; font: inherit; font-weight: 900;
   background: linear-gradient(90deg, #FFE38A, #FFF6D6); box-shadow: var(--shadow); color: var(--ink);
 }
-.rk-open small { font-weight: 700; font-size: .72rem; opacity: .7; }
+.rk-open small { font-weight: 700; font-size: .72rem; opacity: .7; flex-basis: 100%; text-align: center; }
 .rk-sub { font-size: .78rem; text-align: center; margin: 4px 0 6px; opacity: .75; }
 .rk-list { list-style: none; margin: 0; padding: 2px; display: grid; gap: 5px; max-height: min(40vh, 340px); overflow-y: auto; }
 .rk-row {
@@ -111,3 +111,15 @@ body.mg-on { overflow: hidden; }
 .mg-rank { font-weight: 900; color: var(--blueberry); min-height: 1.2em; }
 .mg-btns .mg-btn { padding: 9px 14px; }
 .rk-me .rk-row { text-align: left; }
+
+/* ---------- dibujos 3D de los minijuegos dentro de textos y tarjetas ---------- */
+.mg-ico { height: 1.35em; width: auto; vertical-align: -0.32em; filter: drop-shadow(0 1px 0 rgba(0,0,0,.25)); }
+.mg-ico-inline { height: 1.6em; vertical-align: -0.45em; }
+.mg-bigimg { height: 84px; width: auto; filter: drop-shadow(0 4px 4px rgba(0,0,0,.25)); }
+.game-card .gicon { height: 54px; width: 54px; object-fit: contain; filter: drop-shadow(0 3px 3px rgba(0,0,0,.2)); }
+.game-card .gmedals .mg-ico { height: 1.5em; }
+.mg-medal .mg-ico, .mg-card-in p .mg-ico { height: 1.5em; }
+.mg-extra .mg-ico { height: 1.15em; vertical-align: -0.22em; }
+.rk-trophy .mg-ico { height: 1.5em; vertical-align: -0.35em; }
+.mg-btns { flex-wrap: wrap; }
+.mg-btns .mg-btn { white-space: nowrap; font-size: .95rem; padding: 9px 13px; }
