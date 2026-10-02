@@ -1,0 +1,12 @@
+/* Iconos 3D que sustituyen a los emojis: miden lo mismo que el texto al que acompañan. */
+img.e3d {
+  display: inline-block; height: 1.3em; width: auto; vertical-align: -0.28em;
+  pointer-events: none; user-select: none; -webkit-user-drag: none;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,.22));
+}
+img.e3d:not([src]) { width: 1.3em; visibility: hidden; }   /* aún preparándose */
+#rooms button span img.e3d { height: 1.15em; }
+.ring img.e3d { height: 1.25em; vertical-align: middle; }
+.item .emo img.e3d, .tier .emo img.e3d, .food-card .emo img.e3d { height: 1.45em; }
+.quest .emo img.e3d { height: 1.4em; }
+.rk-emo img.e3d { height: 1.35em; vertical-align: middle; }
