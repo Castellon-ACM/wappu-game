@@ -2,11 +2,12 @@
 // Rodear varias del mismo color a la vez multiplica los puntos (n² × 10) y encadenar lazos sube el combo.
 // La pompa arcoíris vale por cualquier color, el reloj da tiempo y el bug lo quita.
 
+// colores de las pompas (los dibujos 3D están en mg-sprites.js: bubble-0 … bubble-3)
 const COLORS = [
-  { c: '#3858E9', l: '#8EA2FF' },   // azul WordPress
-  { c: '#FF5FA2', l: '#FFB3D3' },   // rosa
-  { c: '#F6C928', l: '#FFE89A' },   // amarillo Wapuu
-  { c: '#2FBF71', l: '#9BE8C4' },   // verde
+  { c: '#3858E9' },   // azul WordPress
+  { c: '#FF5FA2' },   // rosa
+  { c: '#F6C928' },   // amarillo Wapuu
+  { c: '#2FBF71' },   // verde
 ];
 const ROUND = 60;
 
@@ -22,9 +23,10 @@ function pointInPoly(x, y, pts) {
 export default {
   id: 'lasso',
   emo: '🫧',
+  icon: 'bubble-0',
   name: 'Lazo de pompas',
   desc: 'Rodea pompas del mismo color con el dedo.',
-  how: 'Dibuja un lazo alrededor de pompas <b>del mismo color</b>. ¡Cuantas más en un solo lazo, muchos más puntos!<br>🌈 vale por cualquier color · ⏱️ da tiempo · 🐛 te lo quita.',
+  how: 'Dibuja un lazo alrededor de pompas <b>del mismo color</b>. ¡Cuantas más en un solo lazo, muchos más puntos!<br>{bubble-rainbow} vale por cualquier color · {bubble-clock} da tiempo · {bubble-bug} te lo quita.',
   color: '#8EC5FF',
   medals: [600, 2000, 5000],
   coinsPer: 60,
@@ -38,7 +40,7 @@ export default {
     const self = {
       score: 0,
       over: false,
-      extra: () => `⏱️ <b>${Math.ceil(time)}</b>${combo > 1 ? ` · 🔥 combo x${Math.min(combo, 6)}` : ''}`,
+      extra: () => `Tiempo <b>${Math.ceil(time)}</b>${combo > 1 ? ` · Combo <b>x${Math.min(combo, 6)}</b>` : ''}`,
       update,
       draw,
       pointer,
@@ -96,10 +98,10 @@ export default {
         time = Math.max(0, time - 5 * bugs.length);
         combo = 0;
         api.shake(0.3); api.sfx.sad();
-        api.text(bx(bugs[0]), bugs[0].y, `-${5 * bugs.length}s 🐛`, '#FF6B6B', 26);
+        api.text(bx(bugs[0]), bugs[0].y, `-${5 * bugs.length} s`, '#FF6B6B', 26);
         return;
       }
-      for (const b of clocks) { pop(b, '#FFFFFF'); time = Math.min(ROUND, time + 5); api.text(bx(b), b.y, '+5s ⏱️', '#9BE8C4', 24); api.sfx.coin(); }
+      for (const b of clocks) { pop(b, '#FFFFFF'); time = Math.min(ROUND, time + 5); api.text(bx(b), b.y, '+5 s', '#9BE8C4', 24); api.sfx.coin(); }
       if (cols.size > 1) {
         // colores mezclados: no explota ninguna
         api.text(api.w / 2, api.h * 0.4, '¡Solo un color!', '#FFB3D3', 26);
@@ -151,32 +153,10 @@ export default {
       for (let i = 0; i < 6; i++) { g.beginPath(); g.arc((i * 137) % w, (i * 251 + elapsed * 12) % h, 30 + i * 8, 0, Math.PI * 2); g.fill(); }
 
       for (const b of bubbles) {
-        const x = bx(b), y = b.y, r = b.r;
-        if (b.kind === 'color' || b.kind === 'rainbow') {
-          let fill;
-          if (b.kind === 'rainbow') {
-            fill = g.createLinearGradient(x - r, y - r, x + r, y + r);
-            ['#FF5F5F', '#F6C928', '#2FBF71', '#38D6F5', '#7B4FD6'].forEach((c, i) => fill.addColorStop(i / 4, c));
-          } else {
-            fill = g.createRadialGradient(x - r * 0.35, y - r * 0.35, r * 0.1, x, y, r);
-            fill.addColorStop(0, COLORS[b.col].l); fill.addColorStop(1, COLORS[b.col].c);
-          }
-          g.fillStyle = fill;
-          g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
-          g.lineWidth = 3; g.strokeStyle = 'rgba(30,30,30,.55)'; g.stroke();
-          // carita
-          g.fillStyle = '#1E1E1E';
-          g.beginPath(); g.arc(x - r * 0.28, y - r * 0.05, r * 0.1, 0, Math.PI * 2); g.arc(x + r * 0.28, y - r * 0.05, r * 0.1, 0, Math.PI * 2); g.fill();
-          g.beginPath(); g.arc(x, y + r * 0.15, r * 0.18, 0.15 * Math.PI, 0.85 * Math.PI); g.lineWidth = 2; g.stroke();
-          g.fillStyle = 'rgba(255,255,255,.7)';
-          g.beginPath(); g.ellipse(x - r * 0.4, y - r * 0.45, r * 0.22, r * 0.12, -0.6, 0, Math.PI * 2); g.fill();
-        } else {
-          g.fillStyle = b.kind === 'bug' ? 'rgba(60,20,90,.85)' : 'rgba(255,255,255,.85)';
-          g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
-          g.lineWidth = 3; g.strokeStyle = b.kind === 'bug' ? '#B794F6' : '#2FBF71'; g.stroke();
-          g.font = `${r * 1.15}px system-ui, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
-          g.fillText(b.kind === 'bug' ? '🐛' : '⏱️', x, y + 2);
-        }
+        const name = b.kind === 'color' ? `bubble-${b.col}` : b.kind === 'rainbow' ? 'bubble-rainbow' : b.kind === 'bug' ? 'bubble-bug' : 'bubble-clock';
+        // un poco de «gelatina» al flotar
+        const sq = 1 + Math.sin(b.ph * 1.7) * 0.04;
+        api.draw(g, name, bx(b), b.y, b.r * 2.12 * sq, b.r * 2.12 / sq);
       }
       if (path && path.length > 1) {
         g.lineCap = 'round'; g.lineJoin = 'round';

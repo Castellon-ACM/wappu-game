@@ -8,9 +8,10 @@ import lasso from './mg-lasso.js';
 import rhythm from './mg-rhythm.js';
 import plugins from './mg-plugins.js';
 import { initRanking, openRanking, closeRanking, positionFor } from './ranking.js';
+import { ensureSprites, icon, drawSprite } from './mg-sprites.js';
 
 export const GAMES = [lasso, rhythm, plugins];
-const MEDALS = ['🥉', '🥈', '🥇'];
+const MEDALS = [0, 1, 2].map(i => () => icon(`medal-${i}`));
 const MEDAL_BONUS = [20, 40, 80];
 export const ENERGY_COST = 6;
 
@@ -23,6 +24,8 @@ let current = null;      // { game, inst, phase: 'count'|'play'|'pause'|'over', 
 let raf = 0, last = 0;
 const fx = [];           // partículas y textos flotantes compartidos por todos los juegos
 let shakeT = 0;
+
+const withIcons = (html) => html.replace(/\{([a-z0-9-]+)\}/g, (_, n) => icon(n, 'mg-ico mg-ico-inline'));
 
 function stats(id) {
   const s = hooks.getState();
@@ -42,9 +45,9 @@ function buildSheet() {
       <div class="coins"><span aria-hidden="true">🪙</span> <strong id="games-coins">0</strong></div>
       <button id="games-close" class="icon-btn" aria-label="Cerrar minijuegos">✕</button>
     </div>
-    <button type="button" class="rk-open" id="games-ranking">🏆 Ranking mundial <small>nivel y récords de todos</small></button>
+    <button type="button" class="rk-open" id="games-ranking"><span class="rk-trophy"></span> Ranking mundial <small>nivel y récords de todos</small></button>
     <div id="games-list"></div>
-    <p class="games-note">Cada partida cuesta ⚡${ENERGY_COST} de energía y sube el ánimo. Las monedas y la experiencia dependen de tu puntuación.</p>`;
+    <p class="games-note">Cada partida cuesta ${ENERGY_COST} de energía y sube el ánimo. Las monedas y la experiencia dependen de tu puntuación.</p>`;
   document.body.append(sheet);
   sheet.querySelector('#games-close').addEventListener('click', () => sheet.close());
   sheet.querySelector('#games-ranking').addEventListener('click', () => { hooks.sfx.tap(); sheet.close(); openRanking('level'); });
@@ -59,8 +62,8 @@ function renderSheet() {
     const el = document.createElement('div');
     el.className = 'game-card';
     el.style.setProperty('--gc', g.color);
-    const medals = MEDALS.map((m, i) => `<span class="${i < st.medals ? 'got' : ''}" title="${m} ${g.medals[i]} puntos">${m}</span>`).join('');
-    el.innerHTML = `<span class="gemo" aria-hidden="true">${g.emo}</span>
+    const medals = MEDALS.map((m, i) => `<span class="${i < st.medals ? 'got' : ''}" title="Medalla a los ${g.medals[i]} puntos">${m()}</span>`).join('');
+    el.innerHTML = `<span class="gemo" aria-hidden="true">${icon(g.icon, 'gicon')}</span>
       <div class="ginfo"><strong>${g.name}</strong><span>${g.desc}</span>
       <span class="gmeta">Récord: <b>${st.best}</b> <span class="gmedals">${medals}</span></span></div>`;
     const b = document.createElement('button');
@@ -74,6 +77,8 @@ function renderSheet() {
 
 export function openGames() {
   closeRanking();
+  ensureSprites();
+  sheet.querySelector('.rk-trophy').innerHTML = icon('trophy', 'mg-ico');
   renderSheet();
   sheet.style.bottom = `${document.getElementById('rooms').getBoundingClientRect().height}px`;
   sheet.show();
@@ -168,6 +173,8 @@ function makeApi(game) {
       }
     },
     shake(t = 0.25) { shakeT = Math.max(shakeT, t); },
+    draw: drawSprite,
+    icon,
     say(msg) { topExtra.dataset.say = msg; },
     game,
   };
@@ -177,10 +184,11 @@ function start(game) {
   const why = hooks.canPlay();
   if (why !== true) { hooks.toast(why); hooks.sfx.sad(); return; }
   if (sheet.open) sheet.close();
+  ensureSprites();
   hooks.onStart(game);
   overlay.hidden = false;
   overlay.style.setProperty('--gc', game.color);
-  overlay.querySelector('.mg-title').textContent = `${game.emo} ${game.name}`;
+  overlay.querySelector('.mg-title').innerHTML = `${icon(game.icon, 'mg-ico')} ${game.name}`;
   document.body.classList.add('mg-on');
   size();
   fx.length = 0;
@@ -188,7 +196,7 @@ function start(game) {
   current = { game, inst, phase: 'intro', t: 0 };
   topScore.textContent = '0';
   topExtra.innerHTML = '';
-  showCard(`<div class="mg-big">${game.emo}</div><h3>${game.name}</h3><p>${game.how}</p>`, [['¡A jugar!', () => countdown(), 'primary']]);
+  showCard(`<div class="mg-big">${icon(game.icon, 'mg-bigimg')}</div><h3>${game.name}</h3><p>${withIcons(game.how)}</p>`, [['¡A jugar!', () => countdown(), 'primary']]);
   last = performance.now();
   cancelAnimationFrame(raf);
   raf = requestAnimationFrame(frame);
@@ -281,21 +289,21 @@ function finish(quitEarly) {
   hooks.onFinish(game, { score, coins, xp, record, medals: gotMedals, quit: quitEarly });
   const next = game.medals[st.medals];
   showCard(`
-    <div class="mg-big">${record && score > 0 ? '🏆' : game.emo}</div>
+    <div class="mg-big">${icon(record && score > 0 ? 'trophy' : game.icon, 'mg-bigimg')}</div>
     <h3>${record && score > 0 ? '¡Nuevo récord!' : quitEarly ? 'Partida terminada' : '¡Se acabó!'}</h3>
     <p class="mg-final">${score} puntos</p>
-    <p>Récord: <b>${st.best}</b>${next ? ` · Siguiente medalla ${MEDALS[st.medals]} a los ${next}` : ' · ¡Todas las medallas!'}</p>
-    ${gotMedals.length ? `<p class="mg-medal">${gotMedals.join(' ')} ¡Medalla nueva! +${bonus} 🪙</p>` : ''}
-    <p class="mg-reward">+${coins} 🪙 · +${xp} XP</p>
+    <p>Récord: <b>${st.best}</b>${next ? ` · Siguiente medalla ${MEDALS[st.medals]()} a los ${next}` : ' · ¡Todas las medallas!'}</p>
+    ${gotMedals.length ? `<p class="mg-medal">${gotMedals.map(m => m()).join(' ')} ¡Medalla nueva! +${bonus} monedas</p>` : ''}
+    <p class="mg-reward">+${coins} monedas · +${xp} XP</p>
     <p class="mg-rank" id="mg-rank"></p>`, [
     ['Otra vez', () => { quit(true); start(game); }, 'primary'],
-    ['🏆', () => { quit(true); openRanking(game.id); }],
+    ['Ranking', () => { quit(true); openRanking(game.id); }],
     ['Salir', () => quit()],
   ]);
   // puesto mundial de esta puntuación (solo con cuenta)
   positionFor(game.id, score).then((pos) => {
     const el = document.getElementById('mg-rank');
-    if (el && pos) el.textContent = `🌍 Puesto #${pos} en el mundo`;
+    if (el && pos) el.textContent = `Puesto #${pos} en el mundo`;
   });
   if (record && score > 0) hooks.sfx.level(); else hooks.sfx.coin();
 }

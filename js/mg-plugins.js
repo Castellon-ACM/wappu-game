@@ -4,15 +4,17 @@
 
 const GAP = 0.25;        // separación mínima (radianes) entre plugins
 const SPEED = 1500;      // velocidad del plugin lanzado (px/s)
-const PLUG_COLORS = ['#3858E9', '#FF5FA2', '#2FBF71', '#F08A24', '#7B4FD6', '#1FB5A8'];
+const N_COLORS = 6;               // plugins de colores: dibujos 3D plug-0 … plug-5 (mg-sprites.js)
+const PW = 34, PH = 56;           // tamaño del plugin en pantalla
 const PATTERNS = ['constante', 'al revés', 'vaivén', 'a tirones'];
 
 export default {
   id: 'plugins',
   emo: '🔌',
+  icon: 'plug-0',
   name: 'Enchufa plugins',
   desc: 'Clava plugins en el núcleo sin chocar.',
-  how: 'Toca para lanzar un plugin al núcleo que gira. <b>No choques con los que ya están clavados.</b><br>🍪 en el borde dan puntos · 🐛 estorban · cada 5 fases, un jefe.',
+  how: 'Toca para lanzar un plugin al núcleo que gira. <b>No choques con los que ya están clavados.</b><br>{cookie} en el borde dan puntos · {bug} estorban · cada 5 fases, un jefe {boss}',
   color: '#F08A24',
   medals: [400, 1500, 4000],
   coinsPer: 50,
@@ -23,7 +25,7 @@ export default {
     let core = null, flying = null, falling = [], waitT = 0, msg = null;
     const self = {
       score: 0, over: false,
-      extra: () => `Fase <b>${stage}</b>${core?.boss ? ' · 🤖 JEFE' : ''} · ${'❤️'.repeat(lives)}${'🖤'.repeat(Math.max(0, 2 - lives))}`,
+      extra: () => `Fase <b>${stage}</b>${core?.boss ? ' · <b>JEFE</b>' : ''} · ${api.icon('heart').repeat(lives)}${api.icon('heart-empty').repeat(Math.max(0, 2 - lives))}`,
       update, draw, pointer,
     };
 
@@ -81,7 +83,7 @@ export default {
         if (hit) {
           lives -= 1;
           api.shake(0.35); api.sfx.sad();
-          falling.push({ x: flying.x, y: flying.y, vx: (Math.random() - 0.5) * 300, vy: 200, spin: 0, color: flying.color });
+          falling.push({ x: flying.x, y: flying.y + PH / 2, vx: (Math.random() - 0.5) * 300, vy: 200, spin: 0, color: flying.color });
           api.text(flying.x, flying.y - 60, '¡Choque!', '#FF6B6B', 28);
           flying = null;
           if (lives <= 0) self.over = true;
@@ -91,7 +93,7 @@ export default {
         if (cookie) {
           core.items.splice(core.items.indexOf(cookie), 1);
           self.score += 25;
-          api.text(api.w / 2, cy + R + 30, '+25 🍪', '#F6C928', 24); api.sfx.coin();
+          api.text(api.w / 2, cy + R + 30, '+25 galleta', '#F6C928', 24); api.sfx.coin();
         }
         core.items.push({ kind: 'plug', a, color: flying.color });
         core.done += 1;
@@ -106,7 +108,7 @@ export default {
           api.burst(g.cx, g.cy, core.boss ? '#B794F6' : '#38D6F5', 40, 380);
           api.burst(g.cx, g.cy, '#F6C928', 20, 260);
           api.text(g.cx, g.cy, `¡Fase superada! +${bonus}`, '#F6C928', 26);
-          if (core.boss) { lives = Math.min(2, lives + 1); api.text(g.cx, g.cy + 40, '+❤️', '#FF5FA2', 26); }
+          if (core.boss) { lives = Math.min(2, lives + 1); api.text(g.cx, g.cy + 40, '+1 vida', '#FF5FA2', 26); }
           api.sfx.level();
           core.burst = 1;
           waitT = 0.9;
@@ -117,18 +119,12 @@ export default {
     function pointer(type) {
       if (type !== 'down' || flying || waitT > 0) return;
       const { launchY } = geo();
-      flying = { x: api.w / 2, y: launchY, color: PLUG_COLORS[(stage + core.done) % PLUG_COLORS.length] };
+      flying = { x: api.w / 2, y: launchY - 10, color: (stage + core.done) % N_COLORS };
       api.sfx.tap();
     }
 
-    function drawPlug(g, color, len = 46) {
-      // dibujado apuntando hacia arriba con las patas abajo (en el origen)
-      g.fillStyle = '#C9CED6'; g.fillRect(-7, -2, 4, 12); g.fillRect(3, -2, 4, 12);
-      g.fillStyle = color; g.strokeStyle = '#1E1E1E'; g.lineWidth = 2.5;
-      g.beginPath(); g.roundRect ? g.roundRect(-12, -len, 24, len - 2, 6) : g.rect(-12, -len, 24, len - 2); g.fill(); g.stroke();
-      g.fillStyle = 'rgba(255,255,255,.55)'; g.fillRect(-7, -len + 7, 14, 4);
-      g.fillStyle = '#1E1E1E'; g.fillRect(-2, -len - 10, 4, 10);
-    }
+    // Plugin 3D con las patas hacia arriba: (x, top) es la punta de las patas.
+    const plug = (g, color, x, top, rot = 0) => api.draw(g, `plug-${color}`, x, top + PH / 2, PW, PH, rot);
 
     function draw(g, w, h) {
       const grd = g.createLinearGradient(0, 0, 0, h);
@@ -140,36 +136,32 @@ export default {
       for (let i = 0; i < 30; i++) { const x = (i * 97) % w, y = (i * 61) % (h * 0.8); g.fillRect(x, y, 2, 2); }
       if (core && !(waitT > 0 && core.burst)) {
         g.save(); g.translate(cx, cy); g.rotate(core.rot);
-        // cosas clavadas
+        // cosas clavadas (en el borde, mirando hacia fuera: en este marco, +y es hacia fuera)
         for (const it of core.items) {
           g.save(); g.rotate(it.a); g.translate(0, R);
-          if (it.kind === 'plug') drawPlugOut(g, it.color);
-          else { g.font = '28px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(it.kind === 'bug' ? '🐛' : '🍪', 0, 14); }
+          if (it.kind === 'plug') plug(g, it.color, 0, -10);
+          else if (it.kind === 'bug') api.draw(g, 'bug', 0, 14, 40, 40, Math.PI);
+          else api.draw(g, 'cookie', 0, 12, 34, 34);
           g.restore();
         }
-        // núcleo
-        const cg = g.createRadialGradient(-R * 0.3, -R * 0.3, R * 0.1, 0, 0, R);
-        cg.addColorStop(0, core.boss ? '#B794F6' : '#5B7BFF'); cg.addColorStop(1, core.boss ? '#5B1E8A' : '#1D2B6B');
-        g.fillStyle = cg; g.beginPath(); g.arc(0, 0, R, 0, Math.PI * 2); g.fill();
-        g.lineWidth = 5; g.strokeStyle = '#1E1E1E'; g.stroke();
-        g.lineWidth = 3; g.strokeStyle = 'rgba(255,255,255,.35)'; g.beginPath(); g.arc(0, 0, R * 0.78, 0, Math.PI * 2); g.stroke();
-        g.fillStyle = '#FFFFFF'; g.font = `900 ${R * (core.boss ? 1.0 : 1.05)}px Georgia, serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
-        g.fillText(core.boss ? '🤖' : 'W', 0, core.boss ? 4 : 6);
+        // núcleo 3D (gira con el resto)
+        api.draw(g, core.boss ? 'boss' : 'core', 0, 0, R * (core.boss ? 2.55 : 2.2), R * (core.boss ? 2.55 : 2.2));
         g.restore();
-        // contador de plugins que faltan
+        // plugins que faltan
         const left = core.need - core.done;
+        api.draw(g, 'plug-0', 26, h - 38, 18, 30);
         g.font = '900 18px Grandstander, system-ui, sans-serif'; g.textAlign = 'left'; g.textBaseline = 'middle';
-        g.lineWidth = 5; g.strokeStyle = '#1E1E1E'; g.strokeText(`🔌 × ${left}`, 14, h - 34);
-        g.fillStyle = '#FFFFFF'; g.fillText(`🔌 × ${left}`, 14, h - 34);
+        g.lineWidth = 5; g.strokeStyle = '#1E1E1E'; g.strokeText(`× ${left}`, 40, h - 36);
+        g.fillStyle = '#FFFFFF'; g.fillText(`× ${left}`, 40, h - 36);
       }
       // plugin preparado / volando
-      if (flying) { g.save(); g.translate(flying.x, flying.y); g.rotate(Math.PI); drawPlug(g, flying.color); g.restore(); }
+      if (flying) plug(g, flying.color, flying.x, flying.y);
       else if (waitT <= 0) {
-        g.save(); g.translate(w / 2, launchY + Math.sin(t * 6) * 3); g.rotate(Math.PI); drawPlug(g, PLUG_COLORS[(stage + (core?.done || 0)) % PLUG_COLORS.length]); g.restore();
+        plug(g, (stage + (core?.done || 0)) % N_COLORS, w / 2, launchY - 10 + Math.sin(t * 6) * 3);
         g.font = '700 14px Grandstander, system-ui, sans-serif'; g.fillStyle = 'rgba(255,255,255,.55)'; g.textAlign = 'center';
         g.fillText('toca para lanzar', w / 2, launchY + 72);
       }
-      for (const f of falling) { g.save(); g.translate(f.x, f.y); g.rotate(f.spin); drawPlug(g, f.color); g.restore(); }
+      for (const f of falling) api.draw(g, `plug-${f.color}`, f.x, f.y, PW, PH, f.spin);
       if (msg) {
         g.globalAlpha = Math.min(1, msg.t * 2);
         g.font = '900 24px Grandstander, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
@@ -178,8 +170,6 @@ export default {
         g.globalAlpha = 1;
       }
     }
-    // plugin clavado: patas dentro del núcleo y el cuerpo hacia fuera (hacia +y en coordenadas locales)
-    function drawPlugOut(g, color) { g.save(); g.rotate(Math.PI); g.translate(0, 8); drawPlug(g, color); g.restore(); }
 
     return self;
   },

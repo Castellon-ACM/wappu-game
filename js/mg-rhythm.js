@@ -16,6 +16,7 @@ const PERFECT = 0.07, GOOD = 0.15;
 export default {
   id: 'rhythm',
   emo: '🎹',
+  icon: 'key-1',
   name: 'Ritmo de commits',
   desc: 'Toca las notas a tiempo: la melodía la pones tú.',
   how: 'Toca cada carril cuando su nota llegue a la línea. <b>La melodía solo suena si aciertas.</b><br>Cada 8 compases va más rápido. Si fallas mucho, el servidor se cae.',
@@ -41,7 +42,7 @@ export default {
 
     const self = {
       score: 0, over: false,
-      extra: () => `🖥️ <b>${Math.round(stability)}%</b> · ♩ ${Math.round(bpm)}${combo >= 5 ? ` · 🔥 ${combo}` : ''}`,
+      extra: () => `Servidor <b>${Math.round(stability)}%</b> · ${Math.round(bpm)} BPM${combo >= 5 ? ` · Combo <b>${combo}</b>` : ''}`,
       begin() { t0 = ac ? ac.currentTime + 0.05 : 0; },
       update, draw, pointer,
       pause() { ac?.suspend?.(); },
@@ -104,7 +105,7 @@ export default {
       bar += 1;
       if (bar % 8 === 0) {
         bpm = Math.min(172, bpm + 7);
-        api.text(api.w / 2, api.h * 0.32, `¡Más rápido! ♩ ${bpm}`, '#F6C928', 26);
+        api.text(api.w / 2, api.h * 0.32, `¡Más rápido! ${bpm} BPM`, '#F6C928', 26);
       }
     }
 
@@ -166,9 +167,8 @@ export default {
         const x = i * lw;
         g.fillStyle = `rgba(255,255,255,${0.03 + flash[i] * 0.12})`; g.fillRect(x + 4, 0, lw - 8, h);
         g.strokeStyle = 'rgba(255,255,255,.08)'; g.lineWidth = 2; g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke();
-        // diana
-        g.lineWidth = 4; g.strokeStyle = LANES[i].c; g.globalAlpha = 0.5 + flash[i] * 0.5;
-        g.beginPath(); g.arc(x + lw / 2, hitY, 30 + flash[i] * 6, 0, Math.PI * 2); g.stroke(); g.globalAlpha = 1;
+        // diana: aro 3D que late al tocar
+        api.draw(g, `ring-${i}`, x + lw / 2, hitY, 70 * (1 + flash[i] * 0.18), 70 * (1 + flash[i] * 0.18), 0, 0.65 + flash[i] * 0.35);
       }
       g.fillStyle = 'rgba(255,255,255,.18)'; g.fillRect(0, hitY - 2, w, 4);
       // notas
@@ -178,12 +178,9 @@ export default {
         if (k > 1.1) continue;
         const y = hitY - k * (hitY - topY);
         const x = n.lane * lw + lw / 2;
-        g.globalAlpha = n.miss ? 0.3 : 1;
-        g.fillStyle = LANES[n.lane].c; g.strokeStyle = '#1E1E1E'; g.lineWidth = 3;
-        rr(g, x - lw * 0.32, y - 20, lw * 0.64, 40, 14); g.fill(); g.stroke();
-        g.fillStyle = '#1E1E1E'; g.font = '900 18px "Fira Code", monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
-        g.fillText(LANES[n.lane].label, x, y + 1);
-        g.globalAlpha = 1;
+        // tecla 3D (lleva su símbolo grabado)
+        const kw = Math.min(lw * 0.78, 120);
+        api.draw(g, `key-${n.lane}`, x, y, kw, kw * 0.6, 0, n.miss ? 0.3 : 1);
       }
       // pistas de dónde tocar
       g.font = '700 13px Grandstander, system-ui, sans-serif'; g.fillStyle = 'rgba(255,255,255,.45)'; g.textAlign = 'center';
