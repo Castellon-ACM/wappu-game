@@ -1,0 +1,24 @@
+/* Nevera: hoja inferior como la tienda, con la comida en una cuadrícula (sin carrusel). */
+#fridge {
+  position: fixed; left: 0; right: 0; bottom: 0; top: auto; z-index: 9;
+  margin: 0 auto; width: 100%; max-width: 640px;
+  box-shadow: 0 -6px 0 rgba(30,30,30,.12);
+  border-radius: 22px 22px 0 0; border-bottom: 0; padding: 10px 14px 10px;
+}
+.food-grid {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px;
+  max-height: min(30vh, 260px); overflow-y: auto; padding: 2px 2px 4px; overscroll-behavior: contain;
+}
+@media (min-width: 560px) { .food-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+.food-card {
+  display: grid; justify-items: center; align-content: start; gap: 2px; padding: 6px 3px 7px;
+  border: 3px solid var(--ink); border-radius: 16px; background: var(--paper); box-shadow: var(--shadow);
+  font: inherit; color: var(--ink); text-align: center; cursor: pointer; transition: transform .1s;
+}
+.food-card:active { transform: translateY(2px) scale(.97); box-shadow: 0 1px 0 rgba(30,30,30,.22); }
+.food-card:disabled { opacity: .45; cursor: not-allowed; }
+.food-card .emo { font-size: 1.75rem; line-height: 1.1; }
+.food-card .fname { font-size: .72rem; font-weight: 700; line-height: 1.1; min-height: 2.2em; display: grid; place-items: center; overflow-wrap: anywhere; hyphens: auto; }
+.food-card .ffx { font-size: .6rem; font-weight: 700; opacity: .75; line-height: 1.2; min-height: 1.2em; }
+.food-card .price { font-size: .72rem; font-weight: 900; background: var(--wapuu); border: 2px solid var(--ink); border-radius: 999px; padding: 0 7px; }
+#fridge .shop-tabs button { padding: 4px 10px; font-size: .85rem; }
