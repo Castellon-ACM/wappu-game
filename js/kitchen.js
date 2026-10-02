@@ -80,7 +80,7 @@ FOODS.push(
   f('sweets', 'candy', '🍬', 'Caramelo', 2, { food: 3, fun: 6 }, 'Solo uno…'),
   f('sweets', 'lollipop', '🍭', 'Piruleta', 3, { food: 3, fun: 8 }, '¡De colores!'),
   f('sweets', 'cupcake', '🧁', 'Magdalena', 5, { food: 12, fun: 8 }, 'Para mojar en leche.'),
-  f('sweets', 'croissant', '🥐', 'Crusán', 5, { food: 14, energy: 4 }, 'Desayuno de campeones.'),
+  f('sweets', 'croissant', '🥐', 'Cruasán', 5, { food: 14, energy: 4 }, 'Desayuno de campeones.'),
   f('sweets', 'pancakes', '🥞', 'Tortitas', 9, { food: 26, fun: 8 }, 'Con sirope, claro.'),
   f('sweets', 'pretzel', '🥨', 'Pretzel', 5, { food: 14 }, 'Retorcido como un regex.'),
   f('sweets', 'popcorn', '🍿', 'Palomitas', 5, { food: 10, fun: 10 }, '¿Vemos una peli?'),
