@@ -29,7 +29,8 @@ export const DIFFS = [
 ];
 export const DAILY_BONUS = { xp: 100, coins: 20 };
 
-const byId = Object.fromEntries(MISSIONS.map(m => [m.id, m]));
+// Búsqueda en vivo: otros módulos (como los minijuegos) pueden añadir misiones a MISSIONS al cargar.
+const byId = new Proxy({}, { get: (_, id) => MISSIONS.find(m => m.id === id) });
 
 // Fecha local en formato AAAA-MM-DD: las misiones cambian a medianoche.
 export function todayKey(d = new Date()) {

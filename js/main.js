@@ -6,6 +6,7 @@ import * as P from './progress.js';
 import { cosmetic } from './pass-cosmetics.js';
 import './wardrobe.js';
 import './kitchen.js';
+import { initMinigames, openGames, closeGames, ENERGY_COST } from './minigames.js';
 
 const $ = (sel) => document.querySelector(sel);
 const fx = $('#fx');
@@ -446,7 +447,7 @@ function enterRoom(id) {
   state.room = id;
   world.setRoom(id);
   $('#room-name').textContent = ROOM_NAMES[id];
-  document.querySelectorAll('#rooms button').forEach(b => b.setAttribute('aria-current', b.dataset.room === id ? 'page' : 'false'));
+  document.querySelectorAll('#rooms button[data-room]').forEach(b => b.setAttribute('aria-current', b.dataset.room === id ? 'page' : 'false'));
   if (id !== 'cocina' && fridge.open) fridge.close();
   renderActions();
   if (id === 'cocina' && world.pet && !fridge.open) openFridge();
@@ -575,7 +576,7 @@ function loop() {
     bubble.style.top = Math.max(200, h.y - 6) + 'px';
   }
 
-  world.update();
+  if (!document.body.classList.contains('mg-on')) world.update();
 }
 
 // ---------------- tienda de cosméticos ----------------
@@ -584,6 +585,7 @@ function openShop() {
   if (busy) return;
   if (quests.open) quests.close();
   if (fridge.open) fridge.close();
+  closeGames();
   preview = null;
   renderShop();
   shop.show();
@@ -685,6 +687,7 @@ const EFFECT_ICONS = { food: '🍕', energy: '⚡', fun: '🎈', hygiene: '🫧'
 function openFridge() {
   if (shop.open) shop.close();
   if (quests.open) quests.close();
+  closeGames();
   renderFridge();
   // justo encima de la barra de habitaciones, para poder salir de la cocina con la nevera abierta
   fridge.style.bottom = `${$('#rooms').getBoundingClientRect().height}px`;
@@ -713,6 +716,42 @@ function renderFridge() {
     grid.append(b);
   }
   grid.scrollTop = 0;
+}
+
+// ---------------- minijuegos ----------------
+function setupGames() {
+  initMinigames({
+    getState: () => state,
+    sfx, unlock, isMuted, toast,
+    canPlay() {
+      if (busy) return 'Espera un momento…';
+      if (state.mode === 'sleeping') return `${state.name} está durmiendo. Despiértale primero.`;
+      if (state.stats.energy < ENERGY_COST + 4) return `${state.name} está demasiado cansado para jugar. Necesita dormir.`;
+      return true;
+    },
+    onStart() {
+      if (state.mode === 'coding') stopCoding('¡Un descanso para jugar!');
+      setSoap(false);
+      S.apply(state, { energy: -ENERGY_COST, food: -2 });
+      renderHud();
+    },
+    onFinish(game, r) {
+      S.apply(state, { fun: r.quit ? 6 : 12 });
+      if (r.coins || r.xp) gain({ coins: r.coins, xp: r.xp });
+      quest('play');
+      persist();
+      renderHud();
+    },
+  });
+  $('#games-btn').addEventListener('click', () => {
+    unlock(); sfx.tap();
+    const sheet = document.getElementById('games');
+    if (sheet.open) { sheet.close(); return; }
+    if (shop.open) shop.close();
+    if (quests.open) quests.close();
+    if (fridge.open) fridge.close();
+    openGames();
+  });
 }
 
 // ---------------- misiones diarias y pase de batalla ----------------
@@ -744,6 +783,7 @@ function openQuests(tab) {
   if (busy) return;
   if (shop.open) shop.close();
   if (fridge.open) fridge.close();
+  closeGames();
   P.ensureDaily(state);
   if (tab) questTab = tab;
   else if (P.passPending(state) && !state.daily.list.some(q => !q.claimed && q.progress >= q.target)) questTab = 'pass';
@@ -951,6 +991,7 @@ function setupMenu() {
     if (shop.open) shop.close();
     if (quests.open) quests.close();
     if (fridge.open) fridge.close();
+    closeGames();
   });
   $('#pet-name').addEventListener('click', open);
   $('#reset-btn').addEventListener('click', (e) => {
@@ -1155,12 +1196,13 @@ async function start() {
   world.setCosmetics(state.equipped);
   world.setDirt(dirtLevel());
 
-  document.querySelectorAll('#rooms button').forEach(b => b.addEventListener('click', () => { unlock(); sfx.tap(); goRoom(b.dataset.room); }));
+  document.querySelectorAll('#rooms button[data-room]').forEach(b => b.addEventListener('click', () => { unlock(); sfx.tap(); closeGames(); goRoom(b.dataset.room); }));
   world.setMode(state.mode);
   enterRoom(state.room || 'salon');
   world.setMood(S.mood(state));
   setupPointer();
   setupMenu();
+  setupGames();
   renderHud();
 
   $('#loader').classList.add('done');
