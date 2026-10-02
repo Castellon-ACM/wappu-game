@@ -8,5 +8,25 @@ service cloud.firestore {
         && request.resource.data.data is string
         && request.resource.data.data.size() < 20000;
     }
+
+    // Ranking mundial: cualquiera puede verlo; cada persona solo escribe su propia entrada,
+    // con estos campos y dentro de unos límites razonables.
+    match /ranking/{uid} {
+      allow read: if true;
+      allow delete: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['name', 'emo', 'level', 'lvlScore', 'lasso', 'rhythm', 'plugins', 'updatedAt'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 16
+        && request.resource.data.emo is string && request.resource.data.emo.size() <= 16
+        && request.resource.data.level is int
+        && request.resource.data.level >= 1 && request.resource.data.level <= 1000
+        && request.resource.data.lvlScore is int
+        && request.resource.data.lvlScore >= 1000000 && request.resource.data.lvlScore < 1001000000
+        && request.resource.data.lasso is int && request.resource.data.lasso >= 0 && request.resource.data.lasso <= 1000000
+        && request.resource.data.rhythm is int && request.resource.data.rhythm >= 0 && request.resource.data.rhythm <= 5000000
+        && request.resource.data.plugins is int && request.resource.data.plugins >= 0 && request.resource.data.plugins <= 1000000
+        && request.resource.data.updatedAt == request.time;
+    }
   }
 }

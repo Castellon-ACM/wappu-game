@@ -206,3 +206,9 @@ export async function peekCloudUpdatedAt(uid) {
     return snap.exists() ? (snap.data().updatedAtMs || 0) : 0;
   } catch (e) { return 0; }
 }
+
+// ---- Acceso a Firestore para otros módulos (el ranking) ----
+export async function firestore() {
+  await init();
+  return enabled ? { fs: fsMod, db } : null;
+}
