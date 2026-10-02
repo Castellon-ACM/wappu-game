@@ -4,6 +4,7 @@ import { sfx, toggleMute, isMuted, unlock } from './audio.js';
 import * as Auth from './auth.js';
 import * as P from './progress.js';
 import { cosmetic } from './pass-cosmetics.js';
+import './wardrobe.js';
 
 const $ = (sel) => document.querySelector(sel);
 const fx = $('#fx');
@@ -579,24 +580,44 @@ const shop = $('#shop');
 function openShop() {
   if (busy) return;
   if (quests.open) quests.close();
+  preview = null;
   renderShop();
   shop.show();
   $('#shop-close').focus();
 }
 let shopSlot = 'head';
+let preview = null;          // prenda que se está probando (sin comprar ni poner)
+const shopScroll = {};       // posición de la fila de cada pestaña
+// Probador: tocar una prenda se la pone a Wapuu un momento para ver cómo le queda.
+function tryOn(it) {
+  if (state.equipped[it.slot] === it.id) { preview = null; world.setCosmetics(state.equipped); return; }
+  preview = preview === it.id ? null : it.id;
+  world.setCosmetics(preview ? { ...state.equipped, [it.slot]: it.id } : state.equipped);
+  if (preview) world.squish();
+}
 function renderShop() {
   $('#shop-coins').textContent = state.coins;
+  world.showBack(shopSlot === 'back');
   const grid = $('#shop-grid');
+  const oldRow = grid.querySelector('.shop-row');
+  if (oldRow) shopScroll[shopSlot] = oldRow.scrollLeft;
+  const oldTabs = grid.querySelector('.shop-tabs');
+  const tabsScroll = oldTabs ? oldTabs.scrollLeft : 0;
   grid.innerHTML = '';
   // pestañas por zona: la tienda es una sola fila y Wapuu se sigue viendo entero
   const tabs = document.createElement('div');
-  tabs.className = 'shop-tabs'; tabs.setAttribute('role', 'tablist');
-  for (const slot of ['head', 'face', 'ear']) {
+  tabs.className = 'shop-tabs scroll'; tabs.setAttribute('role', 'tablist');
+  for (const slot of Object.keys(S.SLOT_NAMES)) {
     const t = document.createElement('button');
-    t.textContent = S.SLOT_NAMES[slot];
+    const n = S.COSMETICS.filter(c => c.slot === slot);
+    t.textContent = `${S.SLOT_NAMES[slot]} ${n.filter(c => state.owned.includes(c.id)).length}/${n.length}`;
     t.setAttribute('role', 'tab');
     t.setAttribute('aria-selected', slot === shopSlot ? 'true' : 'false');
-    t.addEventListener('click', () => { shopSlot = slot; sfx.tap(); renderShop(); });
+    t.addEventListener('click', () => {
+      shopSlot = slot; sfx.tap();
+      if (preview) { preview = null; world.setCosmetics(state.equipped); }
+      renderShop();
+    });
     tabs.append(t);
   }
   const row = document.createElement('div'); row.className = 'shop-row'; row.setAttribute('role', 'tabpanel');
@@ -605,7 +626,9 @@ function renderShop() {
     const worn = state.equipped[it.slot] === it.id;
     const locked = !owned && it.level && state.level < it.level;
     const card = document.createElement('div');
-    card.className = 'item' + (worn ? ' worn' : '') + (it.pass ? ' pass-item' : '');
+    card.className = 'item' + (worn ? ' worn' : '') + (it.pass ? ' pass-item' : '') + (preview === it.id ? ' trying' : '');
+    card.title = owned ? it.name : `Toca para probártelo: ${it.name}`;
+    card.addEventListener('click', () => { unlock(); sfx.tap(); tryOn(it); renderShop(); });
     card.innerHTML = `<span class="emo" aria-hidden="true">${it.emo}</span><span class="iname">${it.name}</span>` + (it.pass ? '<span class="tag">Pase</span>' : '');
     const b = document.createElement('button');
     if (worn) { b.textContent = 'Quitar'; b.className = 'off'; }
@@ -614,14 +637,18 @@ function renderShop() {
     else if (locked) { b.textContent = `🔒 Nv. ${it.level}`; b.disabled = true; }
     else { b.textContent = `🪙 ${it.price}`; b.disabled = state.coins < it.price; }
     b.setAttribute('aria-label', `${b.textContent} ${it.name}`);
-    b.addEventListener('click', () => shopAction(it));
+    b.addEventListener('click', (e) => { e.stopPropagation(); shopAction(it); });
     card.append(b);
     row.append(card);
   }
   grid.append(tabs, row);
+  row.scrollLeft = shopScroll[shopSlot] || 0;
+  tabs.scrollLeft = tabsScroll;
+  if (!oldTabs) tabs.querySelector('[aria-selected="true"]')?.scrollIntoView({ inline: 'nearest', block: 'nearest' });
 }
 function shopAction(it) {
   unlock();
+  preview = null;
   const owned = state.owned.includes(it.id);
   if (state.equipped[it.slot] === it.id) {
     delete state.equipped[it.slot];
@@ -867,6 +894,10 @@ function setupMenu() {
   $('#menu-btn').addEventListener('click', open);
   $('#shop-btn').addEventListener('click', () => { unlock(); sfx.tap(); openShop(); });
   $('#shop-close').addEventListener('click', () => shop.close());
+  shop.addEventListener('close', () => {
+    world.showBack(false);
+    if (preview) { preview = null; world.setCosmetics(state.equipped); }
+  });
   $('#quests-btn').addEventListener('click', () => { unlock(); sfx.tap(); quests.open ? quests.close() : openQuests(); });
   $('#quests-close').addEventListener('click', () => quests.close());
   document.querySelectorAll('#quests [data-tab]').forEach(t => t.addEventListener('click', () => { sfx.tap(); questTab = t.dataset.tab; renderQuests(); }));
@@ -1093,7 +1124,7 @@ async function start() {
     const h = Math.floor(away.minutes / 60), m = away.minutes % 60;
     toast(`Has estado fuera ${h ? h + ' h ' : ''}${m} min. ${state.name} te echaba de menos.`, 3500);
   } else if (isNew) {
-    setTimeout(() => say(`¡Hola! Soy ${state.name}. Cuida de mí.`, 3200), 600);
+    setTimeout(() => say(`¡Hola! Soy ${state.name}. Cuídame.`, 3200), 600);
   }
   S.save(state);
   startCloudPolling();
